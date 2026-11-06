@@ -2,7 +2,7 @@
   'use strict';
   const { h, icon, num, ago, avatar, chip, sectionHead, load, empty, toggle, confirmAction, toast } = DY.ui;
 
-  const AUTH = { active: ['green', 'Auth OK'], expired: ['red', 'Token expire'], not_connected: ['orange', 'Connect nahi'], revoked: ['red', 'Permission hata di'] };
+  const AUTH = { active: ['green', 'Auth OK'], expired: ['red', 'Token expired'], not_connected: ['orange', 'Not connected'], revoked: ['red', 'Access revoked'] };
   const authChip = (s) => { const [t, l] = AUTH[s] || ['muted', s || DY.ui.DASH]; return chip(t, l); };
 
   DY.views.channels = {
@@ -10,18 +10,18 @@
     render(main) {
       let filter = 'all';
       let items = [];
-      const search = h('input', { type: 'search', placeholder: 'Channel ya folder dhundo...', 'aria-label': 'Channels search', autocomplete: 'off' });
+      const search = h('input', { type: 'search', placeholder: 'Search channel or folder...', 'aria-label': 'Channels search', autocomplete: 'off' });
       const seg = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Filter' });
       const listBox = h('div');
       const count = h('span', { class: 'muted small', 'aria-live': 'polite' });
-      [['all', 'Sab'], ['enabled', 'Chalu'], ['disabled', 'Band'], ['auth', 'Auth problem']].forEach(([k, l]) => {
+      [['all', 'All'], ['enabled', 'On'], ['disabled', 'Off'], ['auth', 'Auth problem']].forEach(([k, l]) => {
         seg.append(h('button', { type: 'button', 'aria-pressed': String(k === filter), onclick: (e) => {
           filter = k; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget))); draw();
         } }, l));
       });
 
       main.append(
-        sectionHead('Channels', 'Har channel ka auth, folder aur upload on/off'),
+        sectionHead('Channels', 'Auth, folder and upload on/off for every channel'),
         h('div', { class: 'card', style: { marginBottom: '12px' } },
           h('div', { class: 'btn-row', style: { alignItems: 'center' } },
             h('div', { class: 'search' }, icon('search'), search), seg, count)),
@@ -38,8 +38,8 @@
           return true;
         });
         count.textContent = `${rows.length} / ${items.length} channels`;
-        if (!items.length) { listBox.replaceChildren(empty('Abhi koi channel nahi', 'CLI se jodo: python main.py channels add UC... "Naam" FOLDER_ID')); return; }
-        if (!rows.length) { listBox.replaceChildren(empty('Kuch nahi mila', 'Search ya filter badal ke dekho.')); return; }
+        if (!items.length) { listBox.replaceChildren(empty('No channels yet', 'Add one from the CLI: python main.py channels add UC... "Name" FOLDER_ID')); return; }
+        if (!rows.length) { listBox.replaceChildren(empty('Nothing found', 'Try a different search or filter.')); return; }
         listBox.replaceChildren(h('ul', { class: 'list' }, rows.map(row)));
       }
 
@@ -58,20 +58,20 @@
             )
           ),
           h('div', { class: 'item-side' },
-            toggle(c.enabled, `${c.name} upload ${c.enabled ? 'band' : 'chalu'} karein`, async (on, input) => {
+            toggle(c.enabled, `${c.enabled ? 'Turn off' : 'Turn on'} uploads for ${c.name}`, async (on, input) => {
               if (!on) {
-                const ok = await confirmAction(`"${c.name}" ke uploads band ho jaayenge. Queue ruk jaayegi. Pakka band karna hai?`, 'Haan, band karo');
+                const ok = await confirmAction(`Uploads for "${c.name}" will stop and its queue will pause. Turn it off?`, 'Yes, turn off');
                 if (!ok) { input.checked = true; return; }
               }
               input.disabled = true;
               try {
                 await DY.api.patch(`/api/channels/${encodeURIComponent(c.id)}`, { enabled: on });
                 c.enabled = on; li.classList.toggle('disabled-row', !on);
-                toast(`${c.name}: ${on ? 'chalu' : 'band'} ✓${DY.api.isDemo() ? ' (demo)' : ''}`, 'ok');
+                toast(`${c.name}: ${on ? 'on' : 'off'} ✓${DY.api.isDemo() ? ' (demo)' : ''}`, 'ok');
               } catch (e) { input.checked = !on; toast(e.message, 'err'); }
               finally { input.disabled = false; }
             }),
-            h('span', { class: 'small muted' }, c.enabled ? 'Chalu' : 'Band')
+            h('span', { class: 'small muted' }, c.enabled ? 'On' : 'Off')
           )
         );
         return li;

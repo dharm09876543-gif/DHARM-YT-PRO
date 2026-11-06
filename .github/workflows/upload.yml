@@ -1,17 +1,72 @@
 name: Upload videos
+# Planner job lists enabled + connected channels; then one matrix job per channel runs
+# `python main.py run --channel UC...`. A channel with a vpn_profile uploads through its own
+# WireGuard tunnel (config from the secret WG_CONF_<PROFILE>, e.g. WG_CONF_CH01).
+# GitHub limits a matrix to 256 jobs; with more channels the planner rotates a 256-channel window.
 on:
   schedule:
     - cron: "0 */3 * * *"
   workflow_dispatch:
+    inputs:
+      max_parallel:
+        description: "How many channel jobs run at the same time"
+        required: false
+        default: "4"
 permissions:
   contents: read
 concurrency:
   group: dharm-yt-uploads
   cancel-in-progress: false
+env:
+  APP_ENV: production
 jobs:
-  run:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+    outputs:
+      channels: ${{ steps.matrix.outputs.channels }}
+      count: ${{ steps.matrix.outputs.count }}
+    steps:
+      - name: Secrets check
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error title=DATABASE_URL missing::DATABASE_URL secret is not set. Add the PostgreSQL URL (postgresql://USER:PASS@HOST:5432/dharm_yt) under Repo > Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if [ -z "$TOKEN_ENCRYPTION_KEY" ]; then
+            echo "::error title=TOKEN_ENCRYPTION_KEY missing::TOKEN_ENCRYPTION_KEY secret is not set (generate it with python main.py keygen and use the same value as your local .env)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Build channel matrix
+        id: matrix
+        run: |
+          python scripts/actions_helper.py matrix --max 256 --offset "${{ github.run_number }}" --out matrix.json
+          echo "channels=$(python -c 'import json;print(json.dumps(json.load(open("matrix.json"))["include"]))')" >> "$GITHUB_OUTPUT"
+          echo "count=$(python -c 'import json;print(json.load(open("matrix.json"))["count"])')" >> "$GITHUB_OUTPUT"
+
+  upload:
+    needs: plan
+    if: needs.plan.outputs.count != '0' && needs.plan.outputs.count != ''
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(inputs.max_parallel || vars.UPLOAD_MAX_PARALLEL || '4') }}
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.channels) }}
+    # One channel never runs twice at the same time (also across overlapping workflow runs).
+    concurrency:
+      group: dharm-yt-upload-${{ matrix.channel_id }}
+      cancel-in-progress: false
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
@@ -21,23 +76,28 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      APP_ENV: production
     steps:
-      - name: Secrets check
-        run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::error title=DATABASE_URL missing::DATABASE_URL secret set nahi hai. Repo > Settings > Secrets and variables > Actions mein PostgreSQL URL (postgresql://USER:PASS@HOST:5432/dharm_yt) daalein."
-            exit 1
-          fi
-          if [ -z "$TOKEN_ENCRYPTION_KEY" ]; then
-            echo "::error title=TOKEN_ENCRYPTION_KEY missing::TOKEN_ENCRYPTION_KEY secret set nahi hai (python main.py keygen se banayein, local wala hi daalein)."
-            exit 1
-          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Upload videos
-        run: python main.py run
+      - name: Install WireGuard tools
+        if: matrix.vpn_profile != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wireguard-tools openresolv
+      - name: Load this channel's WireGuard config (masked, never echoed)
+        if: matrix.vpn_profile != ''
+        env:
+          # All secrets as JSON, only for this step; the helper picks WG_CONF_<PROFILE> and masks it.
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: python scripts/actions_helper.py select-wg --profile "${{ matrix.vpn_profile }}"
+      - name: Upload videos (${{ matrix.channel_id }})
+        run: python main.py run --channel "${{ matrix.channel_id }}"
+      - name: Make sure the tunnel is down
+        if: always() && matrix.vpn_profile != ''
+        run: |
+          for i in $(sudo wg show interfaces 2>/dev/null); do sudo ip link delete dev "$i" || true; done
+          sudo rm -rf /tmp/dy-wg-* || true

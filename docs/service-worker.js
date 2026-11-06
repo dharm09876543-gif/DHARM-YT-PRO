@@ -1,10 +1,10 @@
 /* DHARM YT PRO service worker
- * Sirf app shell (HTML/CSS/JS/icons) cache hota hai.
- * API responses KABHI cache nahi hote: cross-origin aur /api/ requests seedha network par jaati hain.
+ * Only the app shell (HTML/CSS/JS/icons) is cached.
+ * API responses are NEVER cached: cross-origin and /api/ requests go straight to the network.
  */
 'use strict';
 
-const CACHE = 'dharm-yt-shell-v1';
+const CACHE = 'dharm-yt-shell-v2';
 const SHELL = [
   './',
   './index.html',
@@ -48,16 +48,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return;                       // POST/PATCH/DELETE: kabhi touch nahi
+  if (req.method !== 'GET') return;                       // POST/PATCH/DELETE: never touched
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;         // backend API (alag origin): network only
-  if (url.pathname.includes('/api/')) return;              // same-origin API bhi: network only
-  if (req.headers.has('Authorization')) return;            // token wali request: network only
+  if (url.origin !== self.location.origin) return;         // backend API (different origin): network only
+  if (url.pathname.includes('/api/')) return;              // same-origin API too: network only
+  if (req.headers.has('Authorization')) return;            // request with a token: network only
 
   const key = url.origin + url.pathname;                    // query string ignore
   if (!SHELL_URLS.has(key) && req.mode !== 'navigate') return;
 
-  // Network-first (taaki naya version mile), offline par cache se shell.
+  // Network-first (to get the new version), shell from cache when offline.
   event.respondWith(
     fetch(req)
       .then((res) => {

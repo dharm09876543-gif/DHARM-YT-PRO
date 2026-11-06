@@ -1,6 +1,6 @@
 """Per-channel credentials: encrypted refresh token -> google Credentials -> refresh.
 
-invalid_grant (user ne access hata diya / token expire) par channel 'revoked' mark hota hai.
+On invalid_grant (user removed access / token expired) the channel is marked 'revoked'.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from src.services.channel_service import ChannelError, ChannelService
 
 
 class AuthRevoked(RuntimeError):
-    """Channel ko dobara connect karna padega."""
+    """The channel must be connected again."""
 
 
 class TokenManager:
@@ -30,7 +30,7 @@ class TokenManager:
 
     def credentials(self, channel_id: str):
         if not self.client_id or not self.client_secret:
-            raise AuthRevoked("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET set nahi hain")
+            raise AuthRevoked("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set")
         try:
             rt = self.svc.refresh_token(channel_id)
         except ChannelError as e:
@@ -44,8 +44,8 @@ class TokenManager:
             msg = str(e)
             if "invalid_grant" in msg or "unauthorized_client" in msg:
                 self.svc.mark_auth(channel_id, "revoked")
-                raise AuthRevoked(f"Channel {channel_id} ka access revoke/expire ho gaya - "
-                                  "'python main.py connect' se dobara jodein") from e
+                raise AuthRevoked(f"Channel {channel_id} access was revoked/expired - "
+                                  "reconnect with 'python main.py connect'") from e
             raise
         expiry = getattr(creds, "expiry", None)
         if expiry is not None and expiry.tzinfo is None:
@@ -54,7 +54,7 @@ class TokenManager:
         return creds
 
     def services(self, channel_id: str, build=None) -> dict:
-        """youtube, drive, youtubeAnalytics service objects ek hi credentials se."""
+        """youtube, drive, youtubeAnalytics service objects from the same credentials."""
         if build is None:
             from googleapiclient.discovery import build
         creds = self.credentials(channel_id)

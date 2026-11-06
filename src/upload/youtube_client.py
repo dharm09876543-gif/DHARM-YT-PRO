@@ -1,4 +1,4 @@
-"""YouTube Data API v3 wrapper. Har call quota ledger mein record hoti hai."""
+"""YouTube Data API v3 wrapper. Every call is recorded in the quota ledger."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,7 +16,7 @@ class YouTubeClient:
             self.quota.record(op)
 
     def insert_request(self, body: dict, media):
-        """Resumable videos.insert request (execute nahi hota; uploader next_chunk chalata hai)."""
+        """Resumable videos.insert request (not executed; the uploader drives next_chunk)."""
         return self.svc.videos().insert(part="snippet,status", body=body, media_body=media,
                                         notifySubscribers=False)
 
@@ -43,7 +43,7 @@ class YouTubeClient:
         return items[0] if items else None
 
     def find_recent_upload(self, title: str, since: datetime | None = None, pages: int = 2) -> str | None:
-        """Uncertain upload ke baad: kya ye video pehle hi channel par aa chuka hai? (title + time match)"""
+        """After an uncertain upload: is this video already on the channel? (title + time match)"""
         ch = self.my_channel()
         pl = ((ch or {}).get("contentDetails", {}).get("relatedPlaylists", {}) or {}).get("uploads")
         if not pl:

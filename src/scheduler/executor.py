@@ -1,12 +1,16 @@
-"""Saare enabled channels ke liye: discover -> plan -> upload -> verify -> cleanup.
+"""For all enabled channels: discover -> plan -> upload -> verify -> cleanup.
 
-- Har channel alag try/except mein: ek channel fail ho to baaki chalte rahenge.
-- max_concurrent_uploads = ek saath kitne channels (threads).
-- Quota khatam -> naye uploads ruk jaate hain, jobs QUEUED rehte hain.
+- Each channel in its own try/except: if one channel fails, the others keep running.
+- max_concurrent_uploads = how many channels run at once (threads).
+- Quota used up -> new uploads stop, jobs stay QUEUED.
+- Optional VPN (Phase 9): a channel with a vpn_profile uploads through its own WireGuard tunnel
+  (src/vpn/wireguard.py). If the tunnel cannot be verified, that channel's uploads are skipped this run
+  (jobs stay QUEUED). A tunnel is machine-wide, so VPN channels run one at a time.
 """
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 
 from sqlalchemy import text
@@ -20,6 +24,7 @@ from src.upload.discovery import discover_channel
 from src.upload.pipeline import ChannelLimit, load_video, process_video
 from src.utils.logging import get_logger
 from src.utils.timeutil import utcnow
+from src.vpn.wireguard import VpnError
 
 log = get_logger("dharm_yt.executor")
 
@@ -34,7 +39,8 @@ class ChannelRun:
     pending_verify: int = 0
     failed: int = 0
     trashed: int = 0
-    stopped: str | None = None       # quota / auth / channel_limit
+    stopped: str | None = None       # quota / auth / channel_limit / vpn
+    vpn_ip: str | None = None        # masked public IP used for uploads (e.g. 185.x.x.12)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -43,7 +49,7 @@ class ChannelRun:
 
 
 def due_jobs(engine: Engine, channel_id: str, now=None) -> list[int]:
-    """Upload/finish ke liye taiyaar: QUEUED, retry ka time aa gaya, aadhe-adhure (crash), verify baaki."""
+    """Ready to upload/finish: QUEUED, retry time reached, half-done (crash), verify pending."""
     now = now or utcnow()
     with engine.connect() as c:
         rows = c.execute(text("""
@@ -57,7 +63,7 @@ def due_jobs(engine: Engine, channel_id: str, now=None) -> list[int]:
 
 def run_channel(engine: Engine, channel: dict, ctx_factory, settings: dict, sched_cfg: dict,
                 channels_cfg: dict | None = None, steps=("discover", "plan", "upload", "cleanup"),
-                defaults_for=None) -> ChannelRun:
+                defaults_for=None, vpn=None) -> ChannelRun:
     res = ChannelRun(channel["channel_id"], channel.get("channel_name", ""))
     try:
         ctx = ctx_factory(channel)
@@ -69,20 +75,21 @@ def run_channel(engine: Engine, channel: dict, ctx_factory, settings: dict, sche
         if "plan" in steps:
             res.planned = plan_channel(engine, channel, sched_cfg, channels_cfg)
         if "upload" in steps:
-            limit = int(settings.get("uploads", {}).get("max_per_channel_per_run", 2))
-            new_uploads = 0
-            for vid in due_jobs(engine, channel["channel_id"]):
-                v = load_video(engine, vid)
-                fresh = not v.get("youtube_video_id")
-                if fresh:
-                    if new_uploads >= limit:
-                        continue
-                    replan_if_stale(engine, v, channel, sched_cfg, channels_cfg)
-                    new_uploads += 1
-                st = process_video(ctx, vid)
-                res.completed += st == "COMPLETED"
-                res.pending_verify += st == "VERIFYING"
-                res.failed += st == "FAILED"
+            tunneled = bool(vpn and vpn.wants_tunnel(channel))
+            try:
+                gate = vpn.open(channel) if vpn else nullcontext(None)
+            except VpnError as e:
+                gate = None
+                res.stopped = "vpn"; res.errors.append(f"VPN: {e} - uploads skipped, jobs stay QUEUED")
+                log.warning("Channel %s: VPN not verified, uploads skipped", channel["channel_id"])
+            if gate is not None:
+                with gate as tunnel:
+                    # Routing changed: use fresh API connections that go out through the tunnel.
+                    uctx = ctx_factory(channel) if tunnel is not None else ctx
+                    res.vpn_ip = getattr(tunnel, "masked_ip", None) if tunnel is not None else None
+                    _upload_due(engine, channel, uctx, settings, sched_cfg, channels_cfg, res)
+            if tunneled:
+                ctx = ctx_factory(channel)   # routing changed back: fresh connections for cleanup
         if "cleanup" in steps:
             res.trashed = cleanup_channel(engine, ctx.drive, channel["channel_id"], settings)["trashed"]
     except QuotaExceeded as e:
@@ -97,11 +104,31 @@ def run_channel(engine: Engine, channel: dict, ctx_factory, settings: dict, sche
     return res
 
 
+def _upload_due(engine: Engine, channel: dict, ctx, settings: dict, sched_cfg: dict,
+                channels_cfg: dict | None, res: ChannelRun) -> None:
+    limit = int(settings.get("uploads", {}).get("max_per_channel_per_run", 2))
+    new_uploads = 0
+    for vid in due_jobs(engine, channel["channel_id"]):
+        v = load_video(engine, vid)
+        fresh = not v.get("youtube_video_id")
+        if fresh:
+            if new_uploads >= limit:
+                continue
+            replan_if_stale(engine, v, channel, sched_cfg, channels_cfg)
+            new_uploads += 1
+        st = process_video(ctx, vid)
+        res.completed += st == "COMPLETED"
+        res.pending_verify += st == "VERIFYING"
+        res.failed += st == "FAILED"
+
+
 def run_all(engine: Engine, channels: list[dict], ctx_factory, settings: dict, sched_cfg: dict,
             channels_cfg: dict | None = None, steps=("discover", "plan", "upload", "cleanup"),
-            defaults_for=None) -> list[ChannelRun]:
+            defaults_for=None, vpn=None) -> list[ChannelRun]:
     workers = max(1, min(5, int(settings.get("uploads", {}).get("max_concurrent_uploads", 1))))
-    args = (ctx_factory, settings, sched_cfg, channels_cfg, steps, defaults_for)
+    if vpn and any(vpn.wants_tunnel(ch) for ch in channels):
+        workers = 1      # a WireGuard tunnel is machine-wide: never two channels' tunnels at once
+    args = (ctx_factory, settings, sched_cfg, channels_cfg, steps, defaults_for, vpn)
     if workers == 1 or len(channels) <= 1:
         return [run_channel(engine, ch, *args) for ch in channels]
     with ThreadPoolExecutor(max_workers=workers) as ex:
@@ -111,11 +138,13 @@ def run_all(engine: Engine, channels: list[dict], ctx_factory, settings: dict, s
 def summary(results: list[ChannelRun]) -> str:
     lines = []
     for r in results:
-        s = (f"{'OK' if r.ok else '!!'} {r.name or r.channel_id}: naye={r.discovered} plan={r.planned} "
-             f"upload={r.completed} verify-baaki={r.pending_verify} fail={r.failed} trash={r.trashed}")
+        s = (f"{'OK' if r.ok else '!!'} {r.name or r.channel_id}: new={r.discovered} plan={r.planned} "
+             f"upload={r.completed} verify-pending={r.pending_verify} fail={r.failed} trash={r.trashed}")
+        if r.vpn_ip:
+            s += f" vpn={r.vpn_ip}"
         if r.stopped:
-            s += f" [ruka: {r.stopped}]"
+            s += f" [stopped: {r.stopped}]"
         if r.errors:
             s += " | " + "; ".join(r.errors[:2])
         lines.append(s)
-    return "\n".join(lines) or "Koi enabled + connected channel nahi"
+    return "\n".join(lines) or "No enabled + connected channels"

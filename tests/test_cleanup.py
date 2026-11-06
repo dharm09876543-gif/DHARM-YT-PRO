@@ -30,13 +30,13 @@ def test_trash_only_when_all_conditions_met(engine, channel):
     vid = _done(engine, cid)
     ok, why = trash_video_file(engine, DriveClient(svc), vid, S)
     assert ok and why == []
-    assert ("update", "d1", {"trashed": True}) in svc.calls             # trash, delete nahi
+    assert ("update", "d1", {"trashed": True}) in svc.calls             # trash, not delete
     with engine.connect() as c:
         assert c.execute(text("SELECT drive_trashed_at FROM videos")).scalar()
         h = c.execute(text("SELECT event_type, event_status FROM upload_history WHERE event_type='drive_trash'")).first()
     assert tuple(h) == ("drive_trash", "ok")
-    ok2, why2 = trash_video_file(engine, DriveClient(svc), vid, S)      # dobara nahi
-    assert not ok2 and "pehle se trash" in why2
+    ok2, why2 = trash_video_file(engine, DriveClient(svc), vid, S)      # not again
+    assert not ok2 and "already trashed" in why2
 
 
 def test_blocking_reasons():

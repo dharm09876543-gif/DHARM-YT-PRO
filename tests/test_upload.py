@@ -93,7 +93,7 @@ def test_lock_exclusive_and_stale_takeover(engine, channel):
     assert acquire_lock(engine, vid, "A", 90, now=t0)
     assert not acquire_lock(engine, vid, "B", 90, now=t0 + timedelta(minutes=10))
     assert acquire_lock(engine, vid, "B", 90, now=t0 + timedelta(minutes=91))   # stale
-    release_lock(engine, vid, "A")                                              # A ka lock nahi raha
+    release_lock(engine, vid, "A")                                              # A no longer holds the lock
     assert _v(engine, vid).locked_by == "B"
     release_lock(engine, vid, "B")
     assert _v(engine, vid).locked_by is None
@@ -118,26 +118,26 @@ def test_full_upload_thumbnail_verify_completed(engine, ctx, channel):
         assert "upload.fake" not in s.encrypted_session_uri          # URI encrypted
         assert ctx.cipher.decrypt(s.encrypted_session_uri) == "https://upload.fake/s1"
     assert ctx.quota.used() == 1600 + 50 + 1
-    assert not list(Path(ctx.tmp_dir).glob("*"))                       # temp file saaf
+    assert not list(Path(ctx.tmp_dir).glob("*"))                       # temp file cleaned up
 
 
 def test_5xx_and_timeout_retried_with_status_query(engine, ctx, channel):
     ctx.server.fail_plan = [None, http_error(503), "lost_response", None]
     vid = _video(engine, channel["channel_id"])
     assert process_video(ctx, vid) == "COMPLETED"
-    assert ctx.server.initiations == 1                                  # kabhi naya insert nahi
+    assert ctx.server.initiations == 1                                  # never a new insert
 
 
 def test_crash_then_resume_existing_session_no_new_insert(engine, ctx, channel):
     vid = _video(engine, channel["channel_id"])
-    ctx.server.fail_plan = [None, RuntimeError("runner mar gaya")]      # non-retryable crash
+    ctx.server.fail_plan = [None, RuntimeError("runner died")]      # non-retryable crash
     assert process_video(ctx, vid) == "RETRY_WAIT"
     with engine.connect() as c:
         s = c.execute(text("SELECT * FROM upload_sessions WHERE video_id=:v"), {"v": vid}).first()
     assert s.session_status == "active" and s.bytes_uploaded == CHUNK
-    transition(engine, vid, "QUEUED")                                   # retry ka time
+    transition(engine, vid, "QUEUED")                                   # retry time reached
     assert process_video(ctx, vid) == "COMPLETED"
-    assert ctx.server.initiations == 1                                  # wahi session resume hua
+    assert ctx.server.initiations == 1                                  # the same session was resumed
     assert ctx.quota.cost("videos.insert") == 1600 and ctx.quota.used() == 1600 + 1
 
 
@@ -147,7 +147,7 @@ def test_upload_actually_finished_before_crash_is_adopted(engine, ctx, channel):
     up = ResumableUploader(engine, ctx.cipher, ctx.yt, None, chunk_size=CHUNK,
                            media_factory=fake_media_factory, max_retries=0, sleep=lambda s: None)
     ctx.uploader = lambda: up
-    assert process_video(ctx, vid) == "RETRY_WAIT"      # server ke paas poora, hamein jawab nahi mila
+    assert process_video(ctx, vid) == "RETRY_WAIT"      # server has it all, we got no response
     transition(engine, vid, "QUEUED")
     assert process_video(ctx, vid) == "COMPLETED"
     assert ctx.server.initiations == 1 and _v(engine, vid).youtube_video_id == "yt_vid_001"
@@ -187,7 +187,7 @@ def test_quota_exceeded_pauses_and_keeps_queued(engine, ctx, channel):
     assert _v(engine, vid).upload_status == "QUEUED" and ctx.quota.is_paused()
     vid2 = _video(engine, channel["channel_id"], fid="v2")
     with pytest.raises(QuotaExceeded):
-        process_video(ctx, vid2)                                        # upload shuru hi nahi
+        process_video(ctx, vid2)                                        # upload never started
     assert _v(engine, vid2).upload_status == "QUEUED"
 
 
@@ -294,7 +294,7 @@ def test_real_googleapiclient_resume_after_restart(engine, cipher, channel, tmp_
     with pytest.raises(Exception):
         up1.upload(vid, f, {"snippet": {"title": "t"}, "status": {"privacyStatus": "private"}})
     assert seq1.requests[0][0] == "POST" and "uploadType=resumable" in seq1.requests[0][1]
-    # "naya process": pehle status query (bytes */size), phir baaki chunks; koi POST nahi
+    # "new process": status query first (bytes */size), then the remaining chunks; no POST
     seq2 = RecordingSeq([({"status": "308", "range": "bytes=0-262143"}, ""),
                          ({"status": "308", "range": "bytes=0-524287"}, ""),
                          ({"status": "200"}, json.dumps({"id": "REALID", "snippet": {"channelId": "x"}}))])

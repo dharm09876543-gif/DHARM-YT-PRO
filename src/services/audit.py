@@ -1,5 +1,5 @@
 """DB-only audit report: status counts, stale locks, failures, verify pending, cleanup pending,
-duplicate YouTube ids, sessions without URI, aaj ka quota."""
+duplicate YouTube ids, sessions without URI, today's quota."""
 from __future__ import annotations
 
 from datetime import timedelta
@@ -31,23 +31,23 @@ def audit(engine, settings: dict | None = None) -> dict:
     cleanup_wait = [(v, blocking_reasons(v, settings)) for v in vids
                     if v["upload_status"] == "COMPLETED" and not v["drive_trashed_at"]]
     q = QuotaLedger(engine, settings)
-    lines = ["== Upload audit ==", "Status: " + (", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "koi video nahi"),
-             f"Quota aaj (Pacific {q.today()}): {q.used()}/{q.limit}" + (" PAUSED" if q.is_paused() else "")]
+    lines = ["== Upload audit ==", "Status: " + (", ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "no videos"),
+             f"Quota today (Pacific {q.today()}): {q.used()}/{q.limit}" + (" PAUSED" if q.is_paused() else "")]
     for v in stale:
-        lines.append(f"!! Atka lock: video {v['id']} ({v['filename']}) by {v['locked_by']}")
+        lines.append(f"!! Stuck lock: video {v['id']} ({v['filename']}) by {v['locked_by']}")
     for v in failed:
         lines.append(f"!! FAILED: video {v['id']} {v['filename']}: {v['last_error']}")
     for v in verifying:
-        lines.append(f".. Verify baaki: video {v['id']} yt={v['youtube_video_id']} ({v['processing_status']})")
+        lines.append(f".. Verify pending: video {v['id']} yt={v['youtube_video_id']} ({v['processing_status']})")
     for v, why in cleanup_wait:
-        lines.append(f".. Drive trash baaki: video {v['id']}" + (f" -> {', '.join(why)}" if why else " (agle run mein)"))
+        lines.append(f".. Drive trash pending: video {v['id']}" + (f" -> {', '.join(why)}" if why else " (next run)"))
     for y in dup:
         lines.append(f"!! Duplicate YouTube id: {y}")
     for vid in multi:
-        lines.append(f"!! Ek se zyada active session: video {vid}")
+        lines.append(f"!! More than one active session: video {vid}")
     for v in no_id_done:
-        lines.append(f"!! COMPLETED par youtube id nahi: video {v['id']}")
+        lines.append(f"!! COMPLETED without youtube id: video {v['id']}")
     problems = len(stale) + len(failed) + len(dup) + len(multi) + len(no_id_done)
-    lines.append("Sab theek." if not problems else f"{problems} problem(s) - upar dekhein.")
+    lines.append("All good." if not problems else f"{problems} problem(s) - see above.")
     return {"counts": counts, "problems": problems, "stale": [v["id"] for v in stale],
             "failed": [v["id"] for v in failed], "text": "\n".join(lines)}

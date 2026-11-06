@@ -8,7 +8,7 @@
     title: 'Quota Tracker',
     render(main) {
       const box = h('div');
-      main.append(sectionHead('Quota Tracker', 'Har Google Cloud project: 10,000 units/din (default). 1 upload ≈ 1,600 units. VPN se quota nahi badhta.'), box);
+      main.append(sectionHead('Quota Tracker', 'Each Google Cloud project: 10,000 units/day (default). 1 upload ≈ 1,600 units. A VPN does not increase quota.'), box);
       load(box, () => DY.api.get('/api/quota'), (d) => {
         const ps = d.projects || [];
         const used = sum(ps, 'used');
@@ -18,31 +18,31 @@
         const uploadsLeft = left !== null && cost.upload ? Math.floor(left / cost.upload) : null;
         box.append(
           h('div', { class: 'grid grid-stats', style: { marginBottom: '12px' } },
-            stat('Aaj use hua', num(used), `${num(limit)} mein se`, pctOf(used, limit) >= 85 ? 'red' : 'gold'),
-            stat('Bacha', num(left), 'units', 'green'),
-            stat('Aur uploads', num(uploadsLeft), `@ ${num(cost.upload)} units/upload`, 'cyan'),
+            stat('Used today', num(used), `of ${num(limit)}`, pctOf(used, limit) >= 85 ? 'red' : 'gold'),
+            stat('Remaining', num(left), 'units', 'green'),
+            stat('Uploads left', num(uploadsLeft), `@ ${num(cost.upload)} units/upload`, 'cyan'),
             stat('Reset', ago(d.resets_at), `${dt(d.resets_at)} (Pacific midnight)`, 'muted')),
           h('div', { class: 'card', style: { marginBottom: '12px' } }, h('h3', { style: { marginBottom: '10px' } }, 'Projects'),
             ps.length ? h('ul', { class: 'list' }, ps.map((p) => {
               const pc = pctOf(p.used, p.limit);
               return h('li', { class: 'item', style: { flexDirection: 'column', alignItems: 'stretch', background: 'var(--card-2)' } },
                 h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' } },
-                  h('strong', { class: 'mono' }, p.name), h('span', { class: 'small muted' }, `${num(p.used)} / ${num(p.limit)} · ${DY.ui.pct(pc)} · ${num(p.uploads_today)} uploads aaj`)),
+                  h('strong', { class: 'mono' }, p.name), h('span', { class: 'small muted' }, `${num(p.used)} / ${num(p.limit)} · ${DY.ui.pct(pc)} · ${num(p.uploads_today)} uploads today`)),
                 progress(pc, pc >= 85 ? 'bad' : '', `${p.name} quota`));
-            })) : empty('Koi project nahi', null)),
+            })) : empty('No projects', null)),
           h('div', { class: 'grid grid-2' },
-            h('div', { class: 'card' }, h('h3', { style: { marginBottom: '10px' } }, 'Kis kaam ka kitna'),
+            h('div', { class: 'card' }, h('h3', { style: { marginBottom: '10px' } }, 'Cost per operation'),
               h('dl', { class: 'kv' },
                 h('dt', null, 'Video upload'), h('dd', null, `${num(cost.upload)} units`),
                 h('dt', null, 'Thumbnail set'), h('dd', null, `${num(cost.thumbnail)} units`),
                 h('dt', null, 'Metadata update'), h('dd', null, `${num(cost.metadata_update)} units`),
                 h('dt', null, 'List / read'), h('dd', null, `${num(cost.list)} unit`))),
-            h('div', { class: 'card' }, h('h3', { style: { marginBottom: '10px' } }, 'Pichhle 7 din'),
+            h('div', { class: 'card' }, h('h3', { style: { marginBottom: '10px' } }, 'Last 7 days'),
               (d.history || []).length ? h('div', { class: 'meter' }, d.history.map((r) => {
                 const pc = pctOf(r.used, limit);
                 return h('div', null, h('div', { class: 'field-row small' }, h('span', { class: 'muted' }, r.date), h('span', null, num(r.used))), progress(pc, pc >= 85 ? 'bad' : '', r.date));
-              })) : empty('History nahi', null))),
-          h('p', { class: 'callout warn small', style: { marginTop: '12px' } }, '100+ channels ke liye Google se quota increase (YouTube API audit) chahiye. Audit ke bina unverified project ke uploads private lock rehte hain.')
+              })) : empty('No history', null))),
+          h('p', { class: 'callout warn small', style: { marginTop: '12px' } }, '100+ channels need a quota increase from Google (YouTube API audit). Without the audit, uploads from an unverified project stay locked as private.')
         );
       }, 4);
     }

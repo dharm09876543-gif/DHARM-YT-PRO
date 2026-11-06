@@ -22,7 +22,7 @@ def get_engine(url: str | None = None) -> Engine:
         from datetime import date, datetime
 
         from sqlalchemy import event
-        # Python 3.12 default adapter deprecated: ISO format khud set (string compare bhi sahi rehta hai)
+        # Python 3.12 default adapter deprecated: set ISO format ourselves (string comparison stays correct too)
         sqlite3.register_adapter(datetime, lambda d: d.isoformat(" "))
         sqlite3.register_adapter(date, lambda d: d.isoformat())
 
@@ -33,7 +33,7 @@ def get_engine(url: str | None = None) -> Engine:
 
 
 def _to_sqlite(sql: str) -> str:
-    """Postgres SQL ko SQLite-compatible banata hai (sirf local testing)."""
+    """Makes Postgres SQL SQLite-compatible (local testing only)."""
     return (sql.replace("BIGSERIAL PRIMARY KEY", "INTEGER PRIMARY KEY AUTOINCREMENT")
                .replace("TIMESTAMPTZ", "TIMESTAMP")
                .replace("DEFAULT NOW()", "DEFAULT CURRENT_TIMESTAMP")

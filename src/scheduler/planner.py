@@ -1,7 +1,7 @@
-"""Har DISCOVERED video ko channel ka agla khaali slot do -> publish_at (private + publishAt).
+"""Give every DISCOVERED video the channel's next free slot -> publish_at (private + publishAt).
 
-Slots: config/schedules.yaml scheduler.slots; overrides channel key (channels.yaml) ya channel_id se.
-Slot channel ke timezone mein samjhe jaate hain (override.timezone > channel.timezone > scheduler.timezone).
+Slots: config/schedules.yaml scheduler.slots; overrides by channel key (channels.yaml) or channel_id.
+Slots are interpreted in the channel's timezone (override.timezone > channel.timezone > scheduler.timezone).
 """
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def next_free_slot(slots: list[str], tz: str, taken: set[datetime], now: datetim
 
 def plan_channel(engine: Engine, channel: dict, sched_cfg: dict, channels_cfg: dict | None = None,
                  now: datetime | None = None) -> int:
-    """DISCOVERED -> QUEUED (slot ke saath). Kitne plan hue, lautata hai."""
+    """DISCOVERED -> QUEUED (with a slot). Returns how many were planned."""
     sch = sched_cfg.get("scheduler", {}) or {}
     with engine.connect() as c:
         ids = [r[0] for r in c.execute(text("""SELECT id FROM videos WHERE channel_id=:c
@@ -69,7 +69,7 @@ def plan_channel(engine: Engine, channel: dict, sched_cfg: dict, channels_cfg: d
                                        {"c": channel["channel_id"]})]
     if not sch.get("enabled", True):
         for vid in ids:
-            transition(engine, vid, "QUEUED", "scheduler band - turant upload", event="planned")
+            transition(engine, vid, "QUEUED", "scheduler off - upload immediately", event="planned")
         return len(ids)
     slots, tz = channel_slots(channel, sched_cfg, channels_cfg)
     taken = taken_slots(engine, channel["channel_id"])
@@ -78,7 +78,7 @@ def plan_channel(engine: Engine, channel: dict, sched_cfg: dict, channels_cfg: d
         slot = next_free_slot(slots, tz, taken, now, int(sch.get("lead_minutes", 60)),
                               int(sch.get("days_ahead", 30)))
         if slot is None:
-            break      # aage ke din bhare hain; video DISCOVERED rahega
+            break      # the days ahead are full; video stays DISCOVERED
         _assign(engine, vid, channel["channel_id"], slot, tz, new=True)
         taken.add(slot)
         n += 1
@@ -98,13 +98,13 @@ def _assign(engine: Engine, video_id: int, channel_id: str, slot: datetime, tz: 
     else:
         from src.upload.state import log_event, update_fields
         update_fields(engine, video_id, scheduled_publish_at=slot, privacy_status="private")
-        log_event(engine, video_id, "replanned", "ok", f"naya slot {local} {tz}")
+        log_event(engine, video_id, "replanned", "ok", f"new slot {local} {tz}")
 
 
 def replan_if_stale(engine: Engine, video: dict, channel: dict, sched_cfg: dict,
                     channels_cfg: dict | None = None, now: datetime | None = None,
                     margin_minutes: int = 15) -> bool:
-    """Upload se pehle: publish_at nikal gaya/bahut paas ho (quota delay) to agla slot."""
+    """Before upload: if publish_at has passed or is too close (quota delay), move to the next slot."""
     pub = parse_dt(video.get("scheduled_publish_at"))
     now = now or utcnow()
     if pub is None or pub > now + timedelta(minutes=margin_minutes):

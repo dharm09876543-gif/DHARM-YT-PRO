@@ -34,7 +34,7 @@
     const short = { overview: 'Home', channels: 'Channels', queue: 'Queue', metadata: 'Metadata' };
     $('bottom-nav').replaceChildren(
       ...BOTTOM.map((k) => { const [, l, i] = ROUTES.find((r) => r[0] === k); return link(k, l, i, short[k]); }),
-      h('button', { type: 'button', id: 'more-btn', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: openSheet }, icon('more'), h('span', null, 'Aur'))
+      h('button', { type: 'button', id: 'more-btn', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: openSheet }, icon('more'), h('span', null, 'More'))
     );
   }
   function markNav(route) {
@@ -59,9 +59,9 @@
     $('demo-banner').hidden = !demo;
     document.body.classList.toggle('is-demo', demo);
     const pill = $('conn-pill');
-    if (demo) { pill.className = 'pill pill-gold'; pill.textContent = 'DEMO'; pill.title = 'Sample data — backend set nahi'; }
+    if (demo) { pill.className = 'pill pill-gold'; pill.textContent = 'DEMO'; pill.title = 'Sample data — no backend set'; }
     else if (DY.auth.isLoggedIn()) { pill.className = 'pill pill-green'; pill.textContent = 'LIVE'; pill.title = `Backend: ${DY.api.getBackend()}`; }
-    else { pill.className = 'pill pill-red'; pill.textContent = 'LOGIN'; pill.title = 'Login nahi hai'; }
+    else { pill.className = 'pill pill-red'; pill.textContent = 'LOGIN'; pill.title = 'Not logged in'; }
   }
 
   function render() {
@@ -76,10 +76,10 @@
     document.body.classList.add(`route-${route}`);
     refreshChrome();
     main.replaceChildren();
-    // Backend hai par login nahi: protected pages ki jagah login ki taraf bhejo
+    // Backend set but not logged in: send to login instead of protected pages
     if (!DY.api.isDemo() && !DY.auth.isLoggedIn() && route !== 'settings') {
-      main.append(DY.ui.empty('Login zaroori hai', 'Backend jud gaya hai. Data dekhne ke liye login karein.',
-        h('a', { href: '#settings', class: 'btn btn-gold' }, 'Login karo')));
+      main.append(DY.ui.empty('Login required', 'The backend is connected. Log in to see data.',
+        h('a', { href: '#settings', class: 'btn btn-gold' }, 'Log in')));
       return;
     }
     try { view.render(main); } catch (err) { main.append(DY.ui.errorState(err, render)); }
@@ -96,7 +96,7 @@
   buildNav();
   render();
 
-  // Service worker: sirf http(s) par (file:// par browser allow nahi karta)
+  // Service worker: only over http(s) (browsers do not allow it on file://)
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('service-worker.js', { scope: './' }).catch(() => { /* offline support optional */ });

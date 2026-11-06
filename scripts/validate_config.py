@@ -1,4 +1,4 @@
-"""Config files check karein: python scripts/validate_config.py"""
+"""Check config files: python scripts/validate_config.py"""
 import sys
 from pathlib import Path
 
@@ -7,8 +7,8 @@ from src.config import validate_all  # noqa: E402
 
 errors = validate_all()
 if errors:
-    print("Config mein galtiyan:")
+    print("Config errors:")
     for e in errors:
         print("  -", e)
     sys.exit(1)
-print("Config theek hai.")
+print("Config is valid.")

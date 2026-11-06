@@ -1,4 +1,4 @@
-"""Google API errors ko classify karna: retry karein, quota hai, ya permanent."""
+"""Classify Google API errors: retryable, quota, or permanent."""
 from __future__ import annotations
 
 import json
@@ -56,5 +56,5 @@ def is_channel_limit(e: Exception) -> bool:
 
 
 def is_session_gone(e: Exception) -> bool:
-    """Resumable session expire/invalid (404/410) - naya session chahiye (reconcile ke baad)."""
+    """Resumable session expire/invalid (404/410) - a new session is needed (after reconcile)."""
     return http_status(e) in (404, 410)

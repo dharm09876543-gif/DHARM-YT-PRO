@@ -1,4 +1,4 @@
-"""Scripts ke liye common wiring: .env, DB, cipher, config, per-channel Google clients."""
+"""Common wiring for scripts: .env, DB, cipher, config, per-channel Google clients."""
 from __future__ import annotations
 
 import os
@@ -20,8 +20,8 @@ def load_dotenv() -> None:
 def require_env(*names: str) -> None:
     missing = [n for n in names if not os.getenv(n)]
     if missing:
-        print("Galti: ye zaroori settings/secrets nahi mile: " + ", ".join(missing))
-        print("Local: .env mein daalein. GitHub: Settings > Secrets and variables > Actions.")
+        print("Error: these required settings/secrets are missing: " + ", ".join(missing))
+        print("Local: add them to .env. GitHub: Settings > Secrets and variables > Actions.")
         sys.exit(2)
 
 

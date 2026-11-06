@@ -1,4 +1,4 @@
-"""Health check (GitHub Actions + local): DB, migrations, channels auth, atke jobs, quota.
+"""Health check (GitHub Actions + local): DB, migrations, channels auth, stuck jobs, quota.
 
   python main.py health
 """
@@ -24,7 +24,7 @@ print(rep["text"])
 if rep["problems"]:
     issues.append(f"audit: {rep['problems']} problem(s)")
 if issues:
-    print("\nHealth: problem mile ->\n - " + "\n - ".join(issues))
+    print("\nHealth: problems found ->\n - " + "\n - ".join(issues))
     send_alert("Health check problem:\n" + "\n".join(issues[:10]))
     sys.exit(1)
-print("\nHealth: sab theek")
+print("\nHealth: all good")

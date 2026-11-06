@@ -1,5 +1,5 @@
-"""Telegram alert (optional). TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID na ho to chup-chaap skip.
-Alert fail hone se upload kabhi nahi rukta."""
+"""Telegram alert (optional). TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID missing -> silently skipped.
+A failed alert never stops uploads."""
 from __future__ import annotations
 
 import os
@@ -21,5 +21,5 @@ def send_alert(message: str, client: httpx.Client | None = None) -> bool:
                     json={"chat_id": chat, "text": f"DHARM YT PRO\n{message}"[:4000]})
         return r.status_code == 200
     except Exception as e:  # noqa: BLE001
-        log.warning("Telegram alert nahi gaya: %s", redact(str(e)).replace(token, "***"))
+        log.warning("Telegram alert was not sent: %s", redact(str(e)).replace(token, "***"))
         return False

@@ -1,8 +1,11 @@
-"""Saare enabled channels: discover -> plan -> upload -> verify -> cleanup.
+"""All enabled channels: discover -> plan -> upload -> verify -> cleanup.
 
-  python main.py run                    sab steps
-  python main.py run --steps discover,plan   sirf kuch steps
-  python main.py run --channel UCxxxx   ek channel
+  python main.py run                    all steps
+  python main.py run --steps discover,plan   only some steps
+  python main.py run --channel UCxxxx   one channel only (used by the GitHub Actions matrix, one job per channel)
+
+With settings.vpn.enabled, a channel that has a vpn_profile uploads through its own WireGuard tunnel
+(config from the WG_CONF_<PROFILE> env var / secret). See README "VPN (Phase 9)".
 """
 import argparse
 import sys
@@ -22,18 +25,23 @@ from src.scheduler.executor import run_all, summary  # noqa: E402
 from src.services.alerts import send_alert  # noqa: E402
 from src.services.channel_service import ChannelService  # noqa: E402
 from src.services.quota import QuotaLedger  # noqa: E402
+from src.vpn.wireguard import VpnGate  # noqa: E402
 
 chans = [c for c in ChannelService(eng, cipher).list(enabled_only=True)
          if (not a.channel or c["channel_id"] == a.channel)]
+if a.channel and not chans:
+    print(f"Channel {a.channel} not found or disabled - nothing to do.")
+    sys.exit(0)
 ready = [c for c in chans if c["auth_status"] == "active"]
 for c in chans:
     if c["auth_status"] != "active":
         print(f"Skip {c['channel_name']}: auth={c['auth_status']} -> python main.py connect --channel {c['channel_id']}")
 results = run_all(eng, ready, make_ctx_factory(eng, cipher, settings), settings, sched, chcfg,
-                  steps=tuple(a.steps.split(",")), defaults_for=channel_defaults(chcfg))
+                  steps=tuple(a.steps.split(",")), defaults_for=channel_defaults(chcfg),
+                  vpn=VpnGate(settings))
 text_out = summary(results)
 q = QuotaLedger(eng, settings)
-text_out += f"\nQuota aaj (Pacific): {q.used()}/{q.limit} units" + ("  [PAUSED]" if q.is_paused() else "")
+text_out += f"\nQuota today (Pacific): {q.used()}/{q.limit} units" + ("  [PAUSED]" if q.is_paused() else "")
 print(text_out)
 if any(r.completed or r.errors or r.stopped for r in results):
     send_alert(text_out)

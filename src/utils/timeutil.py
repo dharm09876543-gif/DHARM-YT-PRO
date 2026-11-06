@@ -1,4 +1,4 @@
-"""Time helpers: hamesha timezone-aware UTC; SQLite strings ko wapas datetime banana."""
+"""Time helpers: always timezone-aware UTC; turn SQLite strings back into datetimes."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -9,7 +9,7 @@ def utcnow() -> datetime:
 
 
 def parse_dt(v) -> datetime | None:
-    """DB se aaya value (datetime ya SQLite string) -> aware UTC datetime."""
+    """Value from the DB (datetime or SQLite string) -> aware UTC datetime."""
     if v is None or v == "":
         return None
     if isinstance(v, datetime):

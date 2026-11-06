@@ -1,4 +1,4 @@
-"""Logging jo secrets ko chupa deta hai."""
+"""Logging that hides secrets."""
 import logging
 import re
 

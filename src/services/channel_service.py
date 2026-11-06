@@ -23,19 +23,19 @@ class ChannelService:
     def add(self, channel_id: str, name: str, drive_folder_id: str,
             timezone_name: str = "Asia/Kolkata", thumbnail_url: str | None = None) -> None:
         if not channel_id.startswith("UC") or len(channel_id) != 24:
-            raise ChannelError("channel_id galat hai")
+            raise ChannelError("invalid channel_id")
         if not drive_folder_id:
-            raise ChannelError("drive_folder_id zaroori hai")
+            raise ChannelError("drive_folder_id is required")
         with self.db.begin() as c:
             if c.execute(text("SELECT 1 FROM channels WHERE channel_id=:c"), {"c": channel_id}).first():
-                raise ChannelError("ye channel pehle se jud chuka hai")
+                raise ChannelError("this channel is already added")
             c.execute(text("""INSERT INTO channels(channel_id, channel_name, drive_folder_id, timezone, thumbnail_url)
                               VALUES (:c,:n,:f,:t,:th)"""),
                       {"c": channel_id, "n": name, "f": drive_folder_id, "t": timezone_name, "th": thumbnail_url})
 
     def list(self, enabled_only: bool = False) -> list[dict]:
         q = """SELECT c.channel_id, c.channel_name, c.drive_folder_id, c.timezone, c.enabled,
-                      c.thumbnail_url, COALESCE(o.status,'not_connected') AS auth_status,
+                      c.thumbnail_url, c.vpn_profile, COALESCE(o.status,'not_connected') AS auth_status,
                       (SELECT COUNT(*) FROM videos v WHERE v.channel_id=c.channel_id AND v.upload_status='COMPLETED') AS uploaded,
                       (SELECT COUNT(*) FROM videos v WHERE v.channel_id=c.channel_id AND v.upload_status IN ('DISCOVERED','QUEUED','READY','RETRY_WAIT')) AS queued,
                       (SELECT COUNT(*) FROM videos v WHERE v.channel_id=c.channel_id AND v.upload_status='FAILED') AS failed
@@ -50,7 +50,7 @@ class ChannelService:
         for ch in self.list():
             if ch["channel_id"] == channel_id:
                 return ch
-        raise ChannelError("channel nahi mila")
+        raise ChannelError("channel not found")
 
     def _update(self, channel_id: str, **fields) -> None:
         sets = ", ".join(f"{k}=:{k}" for k in fields)
@@ -58,7 +58,7 @@ class ChannelService:
             n = c.execute(text(f"UPDATE channels SET {sets}, updated_at=CURRENT_TIMESTAMP WHERE channel_id=:cid"),
                           {**fields, "cid": channel_id}).rowcount
         if not n:
-            raise ChannelError("channel nahi mila")
+            raise ChannelError("channel not found")
 
     def enable(self, channel_id: str) -> None:
         self._update(channel_id, enabled=True)
@@ -71,8 +71,20 @@ class ChannelService:
 
     def set_folder(self, channel_id: str, drive_folder_id: str) -> None:
         if not drive_folder_id:
-            raise ChannelError("drive_folder_id zaroori hai")
+            raise ChannelError("drive_folder_id is required")
         self._update(channel_id, drive_folder_id=drive_folder_id)
+
+    def set_vpn_profile(self, channel_id: str, profile: str | None) -> None:
+        """Set (e.g. 'ch01') or clear (None/'') the channel's WireGuard profile name. Only the NAME is stored;
+        the config comes from the WG_CONF_<PROFILE> secret at runtime."""
+        from src.vpn.wireguard import normalize_profile
+        value = None
+        if profile:
+            try:
+                value = normalize_profile(profile)
+            except ValueError as e:
+                raise ChannelError(str(e)) from None
+        self._update(channel_id, vpn_profile=value)
 
     def set_timezone(self, channel_id: str, tz: str) -> None:
         from zoneinfo import ZoneInfo
@@ -83,7 +95,7 @@ class ChannelService:
     def save_tokens(self, channel_id: str, refresh_token: str, access_token: str | None = None,
                     expiry: datetime | None = None, scopes: list[str] | None = None) -> None:
         if not self.cipher:
-            raise ChannelError("encryption key chahiye")
+            raise ChannelError("encryption key required")
         self.get(channel_id)
         params = {"c": channel_id, "rt": self.cipher.encrypt(refresh_token),
                   "at": self.cipher.encrypt(access_token) if access_token else None,
@@ -96,9 +108,9 @@ class ChannelService:
 
     def update_access_token(self, channel_id: str, access_token: str | None,
                             expiry: datetime | None = None) -> None:
-        """Refresh ke baad naya access token (encrypted) save; refresh token waisa hi rehta hai."""
+        """After a refresh, save the new access token (encrypted); the refresh token stays unchanged."""
         if not self.cipher:
-            raise ChannelError("encryption key chahiye")
+            raise ChannelError("encryption key required")
         with self.db.begin() as c:
             c.execute(text("""UPDATE oauth_credentials SET encrypted_access_token=:at, token_expiry=:e,
                               updated_at=CURRENT_TIMESTAMP WHERE channel_id=:c"""),
@@ -120,22 +132,22 @@ class ChannelService:
             r = c.execute(text("SELECT encrypted_refresh_token, status FROM oauth_credentials WHERE channel_id=:c"),
                           {"c": channel_id}).first()
         if not r:
-            raise ChannelError("channel connect nahi hai - OAuth karein")
+            raise ChannelError("channel is not connected - run OAuth")
         if r.status != "active":
-            raise ChannelError(f"authorization '{r.status}' hai - dobara connect karein")
+            raise ChannelError(f"authorization is '{r.status}' - connect again")
         return self.cipher.decrypt(r.encrypted_refresh_token)
 
     def mark_auth(self, channel_id: str, status: str) -> None:
         if status not in {"active", "expired", "revoked"}:
-            raise ChannelError("status galat")
+            raise ChannelError("invalid status")
         with self.db.begin() as c:
             c.execute(text("UPDATE oauth_credentials SET status=:s, updated_at=CURRENT_TIMESTAMP WHERE channel_id=:c"),
                       {"s": status, "c": channel_id})
 
     def remove(self, channel_id: str, confirm: bool = False) -> None:
-        """Authorization hata deta hai aur channel disable karta hai; upload history safe rehti hai."""
+        """Removes the authorization and disables the channel; upload history is kept."""
         if not confirm:
-            raise ChannelError("remove ke liye confirm=True dein")
+            raise ChannelError("pass confirm=True to remove")
         with self.db.begin() as c:
             c.execute(text("DELETE FROM oauth_credentials WHERE channel_id=:c"), {"c": channel_id})
         self.disable(channel_id)
@@ -145,7 +157,7 @@ class ChannelService:
         for ch in self.list():
             issues = []
             if ch["auth_status"] != "active":
-                issues.append("OAuth connect/reconnect karein")
+                issues.append("connect/reconnect OAuth")
             if not ch["enabled"]:
                 issues.append("disabled")
             if ch["failed"]:

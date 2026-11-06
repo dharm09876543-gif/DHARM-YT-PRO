@@ -2,14 +2,14 @@
 
   python main.py doctor      setup check
   python main.py validate    config check
-  python main.py init-db     database tables banayein
-  python main.py keygen      encryption keys banayein
-  python main.py channels    channel manager (list/add/enable/disable/health)
-  python main.py ai FILE     Gemini se title, description, tags
-  python main.py connect     YouTube channel OAuth se jodo (browser)
-  python main.py run         discover -> plan -> upload -> verify -> cleanup
-  python main.py cleanup     verified videos ki Drive files trash (--dry-run)
-  python main.py audit       atke/fail jobs ki report (sirf DB)
+  python main.py init-db     create database tables
+  python main.py keygen      generate encryption keys
+  python main.py channels    channel manager (list/add/enable/disable/vpn/health)
+  python main.py ai FILE     title, description, tags with Gemini
+  python main.py connect     connect a YouTube channel via OAuth (browser)
+  python main.py run         discover -> plan -> upload -> verify -> cleanup (--channel UC.. for one)
+  python main.py cleanup     trash Drive files of verified videos (--dry-run)
+  python main.py audit       report of stuck/failed jobs (DB only)
   python main.py analytics   YouTube Analytics -> database
   python main.py health      DB + channels + jobs health check
 """

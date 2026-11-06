@@ -6,7 +6,7 @@ from src.services.quota import QuotaExceeded, QuotaLedger, pacific_date
 
 
 def test_pacific_midnight_reset():
-    # 07:59 UTC = 23:59 PST (pichhla din); 08:00 UTC = naya din (November, PST = UTC-8)
+    # 07:59 UTC = 23:59 PST (previous day); 08:00 UTC = new day (November, PST = UTC-8)
     assert str(pacific_date(datetime(2026, 11, 10, 7, 59, tzinfo=timezone.utc))) == "2026-11-09"
     assert str(pacific_date(datetime(2026, 11, 10, 8, 0, tzinfo=timezone.utc))) == "2026-11-10"
     # July: PDT = UTC-7
@@ -28,10 +28,10 @@ def test_check_before_upload_and_pause(engine):
     q = QuotaLedger(engine, {"quota": {"daily_limit_units": 3400, "upload_cost_units": 1600}})
     q.check_upload()
     q.record("videos.insert"); q.record("thumbnails.set")
-    q.check_upload(with_thumbnail=True)              # bacha 1750 >= 1651
-    q.record("videos.list", 200)                     # bacha 1550
-    with pytest.raises(QuotaExceeded, match="Quota kam"):
-        q.check_upload(with_thumbnail=True)          # 1651 chahiye
+    q.check_upload(with_thumbnail=True)              # 1750 left >= 1651
+    q.record("videos.list", 200)                     # 1550 left
+    with pytest.raises(QuotaExceeded, match="Quota low"):
+        q.check_upload(with_thumbnail=True)          # needs 1651
     q2 = QuotaLedger(engine, {"quota": {"daily_limit_units": 100000}})
     q2.mark_exceeded(); q2.mark_exceeded()
     assert q2.is_paused()

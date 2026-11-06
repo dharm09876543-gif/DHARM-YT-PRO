@@ -1,8 +1,8 @@
 /* API client.
- * - Sirf user ke configure kiye backend URL se baat karta hai (localStorage: dy.backendUrl).
- * - Auth: login se mila bearer session token (auth.js, sessionStorage).
- * - Backend URL nahi hai => DEMO MODE: sample data, kuch bhi network par nahi jaata.
- * - Koi secret/API key is file mein nahi hai, aur kabhi nahi hona chahiye.
+ * - Talks only to the backend URL the user configured (localStorage: dy.backendUrl).
+ * - Auth: bearer session token obtained at login (auth.js, sessionStorage).
+ * - No backend URL => DEMO MODE: sample data, nothing goes over the network.
+ * - There is no secret/API key in this file, and there never should be.
  */
 (function () {
   'use strict';
@@ -14,18 +14,18 @@
     constructor(message, status, code) { super(message); this.status = status; this.code = code; }
   }
 
-  /** https:// zaroori; http sirf localhost/127.0.0.1 ke liye (local testing). */
+  /** https:// required; http only for localhost/127.0.0.1 (local testing). */
   function normalizeUrl(raw) {
     const s = String(raw || '').trim().replace(/\/+$/, '');
     if (!s) return '';
     let u;
-    try { u = new URL(s); } catch (_) { throw new ApiError('URL sahi nahi hai. Example: https://dharm-yt-api.example.com', 0, 'bad_url'); }
+    try { u = new URL(s); } catch (_) { throw new ApiError('Invalid URL. Example: https://dharm-yt-api.example.com', 0, 'bad_url'); }
     const local = ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);
     if (u.protocol !== 'https:' && !(u.protocol === 'http:' && local)) {
-      throw new ApiError('Security ke liye sirf https:// URL chalega (http sirf localhost par).', 0, 'insecure_url');
+      throw new ApiError('For security only https:// URLs are allowed (http only on localhost).', 0, 'insecure_url');
     }
-    if (u.username || u.password) throw new ApiError('URL mein username/password mat daalo.', 0, 'creds_in_url');
-    if (u.search || u.hash) throw new ApiError('URL mein ? ya # mat daalo, sirf base address.', 0, 'bad_url');
+    if (u.username || u.password) throw new ApiError('Do not put a username/password in the URL.', 0, 'creds_in_url');
+    if (u.search || u.hash) throw new ApiError('Do not put ? or # in the URL, only the base address.', 0, 'bad_url');
     return u.origin + u.pathname.replace(/\/+$/, '');
   }
 
@@ -43,7 +43,7 @@
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     const token = auth && DY.auth ? DY.auth.getToken() : null;
-    if (auth && !token) throw new ApiError('Login zaroori hai. Settings mein jaake login karein.', 401, 'no_session');
+    if (auth && !token) throw new ApiError('Login required. Go to Settings and log in.', 401, 'no_session');
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const ctrl = new AbortController();
@@ -56,7 +56,7 @@
         signal: ctrl.signal, credentials: 'omit', cache: 'no-store', mode: 'cors', referrerPolicy: 'no-referrer'
       });
     } catch (e) {
-      throw new ApiError(e.name === 'AbortError' ? 'Backend ne time par jawab nahi diya.' : 'Backend tak nahi pahunch paaye. URL ya internet check karein.', 0, 'network');
+      throw new ApiError(e.name === 'AbortError' ? 'The backend did not respond in time.' : 'Could not reach the backend. Check the URL or your internet connection.', 0, 'network');
     } finally { clearTimeout(t); }
 
     let data = null;
@@ -64,11 +64,11 @@
     if (ct.includes('application/json')) { try { data = await res.json(); } catch (_) { data = null; } }
 
     if (res.status === 401 && !auth) {
-      throw new ApiError('Username ya password galat hai.', 401, 'bad_login');
+      throw new ApiError('Wrong username or password.', 401, 'bad_login');
     }
     if (res.status === 401) {
       if (DY.auth) DY.auth.clear();
-      throw new ApiError('Session khatam ho gaya. Dobara login karein.', 401, 'unauthorized');
+      throw new ApiError('Session expired. Please log in again.', 401, 'unauthorized');
     }
     if (!res.ok) {
       const msg = (data && (data.message || data.detail)) || `Backend error (${res.status})`;
@@ -128,14 +128,14 @@
       const topic = (body && body.notes) || 'sample topic';
       return {
         sample: true,
-        title: `[SAMPLE] ${topic.slice(0, 60)} | Poori jaankari Hindi mein`,
-        description: `[SAMPLE — Demo mode, Gemini call nahi hua]\n\nIs video mein ${topic} ke baare mein simple bhasha mein samjhaya gaya hai.\n\n#sample #demo`,
-        tags: ['sample', 'demo', 'hindi', ...topic.toLowerCase().split(/\s+/).filter(Boolean).slice(0, 4)]
+        title: `[SAMPLE] ${topic.slice(0, 60)} | Complete guide`,
+        description: `[SAMPLE — Demo mode, no Gemini call was made]\n\nThis video explains ${topic} in simple language.\n\n#sample #demo`,
+        tags: ['sample', 'demo', 'english', ...topic.toLowerCase().split(/\s+/).filter(Boolean).slice(0, 4)]
       };
     }
     if (method === 'POST' && p === '/api/metadata') return { ok: true, sample: true };
     if (method === 'POST' && p === '/api/vpn/check') return { ok: true, sample: true };
-    throw new ApiError(`Demo mode mein yeh action nahi hai: ${method} ${p}`, 404, 'demo_missing');
+    throw new ApiError(`This action is not available in demo mode: ${method} ${p}`, 404, 'demo_missing');
   }
 
   DY.api = {

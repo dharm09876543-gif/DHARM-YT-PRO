@@ -1,4 +1,4 @@
-"""Gemini AI se YouTube title, description, tags banana.
+"""Generate YouTube title, description and tags with Gemini AI.
 
 Key: GEMINI_API_KEY env / GitHub Secret. Model: GEMINI_MODEL (default gemini-3.6-flash).
 """
@@ -39,7 +39,7 @@ class GeminiMetadata:
                  client: httpx.Client | None = None):
         self.key = api_key or os.getenv("GEMINI_API_KEY", "")
         if not self.key:
-            raise GeminiError("GEMINI_API_KEY set nahi hai")
+            raise GeminiError("GEMINI_API_KEY is not set")
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
         self.client = client or httpx.Client(timeout=90)
         self.tried: list[tuple[str, int]] = []
@@ -89,7 +89,7 @@ class GeminiMetadata:
         return names[0] if names else None
 
     def generate(self, filename: str, channel: str = "", notes: str = "",
-                 language: str = "Hindi", style: str = "friendly, energetic",
+                 language: str = "English", style: str = "friendly, energetic",
                  footer: str = "", extra_tags: list[str] | None = None) -> VideoMetadata:
         prompt = PROMPT.format(filename=filename, channel=channel or "-", notes=notes or "-",
                                language=language, style=style,
@@ -111,14 +111,14 @@ class GeminiMetadata:
                     self.model, r = alt, r2
                     break
         if r.status_code == 429:
-            raise GeminiError(f"Gemini quota/rate limit - thodi der baad ({self._msg(r)})")
+            raise GeminiError(f"Gemini quota/rate limit - try again later ({self._msg(r)})")
         if r.status_code >= 400:
             raise GeminiError(f"Gemini error {r.status_code} ({self._msg(r)})")
         try:
             text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
             data = json.loads(text.strip().removeprefix("```json").removesuffix("```"))
         except (KeyError, IndexError, ValueError) as e:
-            raise GeminiError("Gemini ka jawab samajh nahi aaya") from e
+            raise GeminiError("Could not parse the Gemini response") from e
         desc = data.get("description", "")
         if footer:
             desc = f"{desc}\n\n{footer}"

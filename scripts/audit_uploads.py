@@ -1,4 +1,4 @@
-"""Upload audit (sirf DB, koi API call nahi): atke jobs, fail, verify baaki, trash baaki, quota.
+"""Upload audit (DB only, no API calls): stuck jobs, failures, verify pending, trash pending, quota.
 
   python main.py audit
 """

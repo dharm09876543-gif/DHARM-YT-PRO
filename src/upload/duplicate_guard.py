@@ -1,7 +1,7 @@
-"""Duplicate guard: ek hi video ek channel par do baar kabhi nahi.
+"""Duplicate guard: the same video is never uploaded twice to a channel.
 
-1. DB constraint UNIQUE(channel_id, drive_file_id, drive_file_version) - aakhri deewar.
-2. Pehle check: same drive file+version, ya same md5 content (alag file id se re-upload) pehle se?
+1. DB constraint UNIQUE(channel_id, drive_file_id, drive_file_version) - the last line of defence.
+2. Pre-check: same drive file+version, or same md5 content (re-uploaded under a different file id) already present?
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 
 
 def file_version(f: dict) -> str:
-    """Content-based version: md5 sabse bharosemand (rename se nahi badalta)."""
+    """Content-based version: md5 is the most reliable (does not change on rename)."""
     return str(f.get("md5Checksum") or f.get("version") or "1")
 
 
@@ -32,7 +32,7 @@ def find_existing(conn, channel_id: str, drive_file_id: str, version: str, md5: 
 
 
 def insert_if_new(engine: Engine, row: dict) -> tuple[int | None, str]:
-    """(new_video_id, 'inserted') ya (None, 'same_file'|'same_content'|'race')."""
+    """(new_video_id, 'inserted') or (None, 'same_file'|'same_content'|'race')."""
     with engine.begin() as c:
         vid, why = find_existing(c, row["channel_id"], row["drive_file_id"],
                                  row["drive_file_version"], row.get("drive_md5"))
@@ -55,4 +55,4 @@ def insert_if_new(engine: Engine, row: dict) -> tuple[int | None, str]:
                               VALUES (:v,'discovered','ok',:m)"""), {"v": new_id, "m": row["filename"]})
         return new_id, "inserted"
     except IntegrityError:
-        return None, "race"   # dusre worker ne pehle daal diya - constraint ne roka
+        return None, "race"   # another worker inserted it first - blocked by the constraint

@@ -1,8 +1,8 @@
 """Upload state machine + job locking.
 
 DISCOVERED -> QUEUED -> DOWNLOADING -> READY -> UPLOADING -> PROCESSING -> VERIFYING -> COMPLETED
-Kahin se bhi: FAILED / RETRY_WAIT / CANCELLED. Lock: locked_by + locked_at; stale lock timeout ke
-baad dusra worker le sakta hai (crash hua run).
+From any state: FAILED / RETRY_WAIT / CANCELLED. Lock: locked_by + locked_at; after the stale-lock timeout
+another worker can take it over (crashed run).
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ TRANSITIONS: dict[str, set[str]] = {
     "QUEUED": {"DOWNLOADING", "UPLOADING", "RETRY_WAIT", "CANCELLED", "FAILED", "QUEUED"},
     "DOWNLOADING": {"READY", "RETRY_WAIT", "FAILED", "QUEUED"},
     "READY": {"UPLOADING", "DOWNLOADING", "RETRY_WAIT", "FAILED", "QUEUED"},
-    "UPLOADING": {"PROCESSING", "DOWNLOADING", "RETRY_WAIT", "FAILED", "QUEUED"},   # crash ke baad re-download
+    "UPLOADING": {"PROCESSING", "DOWNLOADING", "RETRY_WAIT", "FAILED", "QUEUED"},   # re-download after a crash
     "PROCESSING": {"VERIFYING", "FAILED", "RETRY_WAIT"},
     "VERIFYING": {"COMPLETED", "FAILED", "VERIFYING", "RETRY_WAIT"},
     "RETRY_WAIT": {"QUEUED", "DOWNLOADING", "UPLOADING", "PROCESSING", "VERIFYING", "FAILED",
@@ -40,13 +40,13 @@ def get_status(engine: Engine, video_id: int) -> str:
 
 def transition(engine: Engine, video_id: int, new: str, message: str | None = None,
                event: str = "state", **fields) -> None:
-    """Allowed transition hi hone deta hai; history mein likhta hai."""
+    """Only allows permitted transitions; writes to history."""
     with engine.begin() as c:
         cur = c.execute(text("SELECT upload_status FROM videos WHERE id=:v"), {"v": video_id}).scalar()
         if cur is None:
-            raise InvalidTransition("video nahi mila")
+            raise InvalidTransition("video not found")
         if new != cur and new not in TRANSITIONS[cur]:
-            raise InvalidTransition(f"{cur} -> {new} allowed nahi")
+            raise InvalidTransition(f"{cur} -> {new} not allowed")
         sets = "".join(f", {k}=:{k}" for k in fields)
         c.execute(text(f"UPDATE videos SET upload_status=:s, updated_at=:now{sets} WHERE id=:v"),
                   {"s": new, "now": utcnow(), "v": video_id, **fields})
@@ -73,7 +73,7 @@ def log_event(engine: Engine, video_id: int, event: str, status: str, message: s
 
 def acquire_lock(engine: Engine, video_id: int, worker: str, stale_minutes: int = 90,
                  now: datetime | None = None) -> bool:
-    """Atomic: lock tabhi milega jab khaali ho, apna ho, ya stale ho."""
+    """Atomic: the lock is granted only if free, already ours, or stale."""
     now = now or utcnow()
     stale = now - timedelta(minutes=stale_minutes)
     with engine.begin() as c:

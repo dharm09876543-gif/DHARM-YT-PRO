@@ -22,8 +22,8 @@ def test_duplicate_channel_and_bad_id():
         {"key": "B", "channel_id": "bad", "drive_folder_id": "f", "timezone": "Mars/Base"},
     ]}
     errs = " | ".join(validate_channels(c))
-    assert "key dobara" in errs and "channel_id dobara" in errs
-    assert "drive_folder_id" in errs and "24 akshar" in errs and "timezone" in errs
+    assert "duplicate key" in errs and "duplicate channel_id" in errs
+    assert "drive_folder_id" in errs and "24 characters" in errs and "timezone" in errs
 
 
 def test_bad_slots():

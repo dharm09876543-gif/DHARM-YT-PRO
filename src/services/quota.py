@@ -1,9 +1,9 @@
 """YouTube Data API quota ledger.
 
-- Har operation ke units record (quota_usage table, ON CONFLICT upsert).
-- Upload se pehle daily_limit check.
-- Google quota Pacific midnight par reset hota hai, isliye quota_date = America/Los_Angeles date.
-- quotaExceeded aaye to din bhar ke liye pause (jobs QUEUED hi rehte hain).
+- Records units per operation (quota_usage table, ON CONFLICT upsert).
+- Checks daily_limit before an upload.
+- Google quota resets at Pacific midnight, so quota_date = America/Los_Angeles date.
+- On quotaExceeded, pause for the rest of the day (jobs stay QUEUED).
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ EXHAUSTED = "__quota_exceeded__"
 
 
 class QuotaExceeded(RuntimeError):
-    """Aaj ka quota khatam - jobs queue mein rahenge, Pacific midnight ke baad chalenge."""
+    """Today's quota is used up - jobs stay queued and run after Pacific midnight."""
 
 
 def pacific_date(now: datetime | None = None) -> date:
@@ -77,7 +77,7 @@ class QuotaLedger:
                              {"d": self.today(), "p": self.project, "op": EXHAUSTED}).first() is not None
 
     def mark_exceeded(self) -> None:
-        """Google ne quotaExceeded diya: aaj (Pacific) ke liye uploads pause."""
+        """Google returned quotaExceeded: pause uploads for today (Pacific)."""
         if not self.is_paused():
             self.record(EXHAUSTED)
 
@@ -87,10 +87,10 @@ class QuotaLedger:
 
     def check_upload(self, with_thumbnail: bool = True) -> None:
         if self.is_paused():
-            raise QuotaExceeded("Aaj ka YouTube quota khatam (Google) - Pacific midnight ke baad")
+            raise QuotaExceeded("Today's YouTube quota is used up (Google) - resumes after Pacific midnight")
         need = self.upload_cost(with_thumbnail)
         if self.remaining() < need:
-            raise QuotaExceeded(f"Quota kam: bacha {self.remaining()} units, upload ko {need} chahiye")
+            raise QuotaExceeded(f"Quota low: {self.remaining()} units left, upload needs {need}")
 
     def near_warning(self) -> bool:
         return self.used() >= self.warning

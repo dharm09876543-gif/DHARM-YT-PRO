@@ -1,6 +1,6 @@
-"""Ek video ka poora safar: lock -> download -> resumable upload -> thumbnail -> verify -> COMPLETED.
+"""Full journey of one video: lock -> download -> resumable upload -> thumbnail -> verify -> COMPLETED.
 
-Har step ke baad state DB mein, isliye kisi bhi point par crash ho to agla run wahi se uthata hai.
+State is written to the DB after every step, so after a crash at any point the next run picks up from there.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ PRE_UPLOAD = {"QUEUED", "RETRY_WAIT", "DOWNLOADING", "READY", "UPLOADING"}
 
 
 class ChannelLimit(RuntimeError):
-    """Is channel ki daily upload limit (YouTube) - baaki channels chalte rahenge."""
+    """This channel's daily upload limit (YouTube) - other channels keep running."""
 
 
 @dataclass
@@ -73,7 +73,7 @@ def youtube_body(v: dict) -> dict:
                          publish_at=parse_dt(v.get("scheduled_publish_at"))).clean()
     errs = meta.errors()
     if errs:
-        raise ValueError("Metadata galat: " + "; ".join(errs))
+        raise ValueError("Invalid metadata: " + "; ".join(errs))
     return meta.to_youtube_body()
 
 
@@ -96,15 +96,15 @@ def _upload_stage(ctx: UploadContext, v: dict) -> str:
         try:
             resp = up.upload(v["id"], path, body, v.get("mime_type"))
         except SessionLost as sl:
-            # Andha re-insert nahi: pehle dekho kahin video pehle hi channel par to nahi.
+            # No blind re-insert: first check whether the video is already on the channel.
             found = ctx.yt.find_recent_upload(body["snippet"]["title"], since=parse_dt(sl.created_at))
             log_event(ctx.engine, v["id"], "reconcile", "found" if found else "not_found",
-                      "session expire; channel uploads check kiye", found)
+                      "session expired; checked channel uploads", found)
             resp = {"id": found} if found else up.upload(v["id"], path, body, v.get("mime_type"))
     finally:
         path.unlink(missing_ok=True)
     yt_id = resp["id"]
-    transition(ctx.engine, v["id"], "PROCESSING", "upload poora", event="uploaded", youtube_video_id=yt_id)
+    transition(ctx.engine, v["id"], "PROCESSING", "upload complete", event="uploaded", youtube_video_id=yt_id)
     return yt_id
 
 
@@ -134,7 +134,7 @@ def _finish_stage(ctx: UploadContext, v: dict) -> str:
 
 
 def process_video(ctx: UploadContext, video_id: int) -> str:
-    """Final/current status lautata hai. QuotaExceeded, AuthRevoked, ChannelLimit upar jaate hain."""
+    """Returns the final/current status. QuotaExceeded, AuthRevoked, ChannelLimit propagate up."""
     if not acquire_lock(ctx.engine, video_id, ctx.worker,
                         int(ctx.settings.get("uploads", {}).get("stale_lock_minutes", 90))):
         return "LOCKED"
@@ -147,18 +147,18 @@ def process_video(ctx: UploadContext, video_id: int) -> str:
             return _finish_stage(ctx, v)
         return load_video(ctx.engine, video_id)["upload_status"]
     except QuotaExceeded:
-        _back_to_queue(ctx, video_id, "quota khatam - queue mein")
+        _back_to_queue(ctx, video_id, "quota used up - back in queue")
         raise
     except AuthRevoked:
-        _back_to_queue(ctx, video_id, "auth revoke - reconnect ke baad")
+        _back_to_queue(ctx, video_id, "auth revoked - after reconnect")
         raise
     except Exception as e:  # noqa: BLE001
         if is_quota_exceeded(e):
             ctx.quota.mark_exceeded()
-            _back_to_queue(ctx, video_id, "Google quotaExceeded - kal")
-            raise QuotaExceeded("Google ne quotaExceeded diya") from e
+            _back_to_queue(ctx, video_id, "Google quotaExceeded - retry tomorrow")
+            raise QuotaExceeded("Google returned quotaExceeded") from e
         if is_channel_limit(e):
-            _back_to_queue(ctx, video_id, "channel upload limit - kal")
+            _back_to_queue(ctx, video_id, "channel upload limit - retry tomorrow")
             raise ChannelLimit(str(e)) from e
         return _fail_or_retry(ctx, video_id, e)
     finally:

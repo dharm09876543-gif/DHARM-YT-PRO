@@ -1,10 +1,10 @@
-/* UI helpers: safe DOM builder (koi innerHTML nahi), formatters, states, confirm, toast. */
+/* UI helpers: safe DOM builder (no innerHTML), formatters, states, confirm, toast. */
 (function () {
   'use strict';
   const DY = (window.DY = window.DY || {});
   DY.views = DY.views || {};
 
-  /** h('div', {class:'x', onclick:fn}, child, 'text') — text hamesha textContent se jaata hai. */
+  /** h('div', {class:'x', onclick:fn}, child, 'text') — text always goes through textContent. */
   function h(tag, attrs, ...children) {
     const el = document.createElement(tag);
     if (attrs) {
@@ -30,7 +30,7 @@
     }
     return el;
   }
-  /** Sirf http(s), relative, data:image aur # links. javascript: jaisi cheezein block. */
+  /** Only http(s), relative, data:image and # links. Things like javascript: are blocked. */
   function safeUrl(u) {
     const s = String(u || '').trim();
     if (/^(https?:|#|\.\/|\.\.\/|\/|data:image\/)/i.test(s) || /^[\w.-]+(\/|\.|$)/.test(s)) {
@@ -39,7 +39,7 @@
     }
     return '#';
   }
-  /** SVG icon (static paths, hamare apne). */
+  /** SVG icon (static paths, our own). */
   const ICONS = {
     overview: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
     channels: 'M21 3H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5v2h8v-2h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 14H3V5h18v12zM10 8v6l5-3-5-3z',
@@ -70,7 +70,7 @@
     return svg;
   }
 
-  // ---------- Formatters: null/undefined => '—' (kabhi 0 nahi) ----------
+  // ---------- Formatters: null/undefined => '—' (never 0) ----------
   const DASH = '—';
   const isNil = (v) => v === null || v === undefined || v === '' || (typeof v === 'number' && Number.isNaN(v));
   function num(v) {
@@ -102,8 +102,8 @@
     if (Number.isNaN(d.getTime())) return DASH;
     const s = Math.round((Date.now() - d.getTime()) / 1000);
     const fut = s < 0; const a = Math.abs(s);
-    const unit = a < 60 ? `${a} sec` : a < 3600 ? `${Math.round(a / 60)} min` : a < 86400 ? `${Math.round(a / 3600)} ghante` : `${Math.round(a / 86400)} din`;
-    return fut ? `${unit} mein` : `${unit} pehle`;
+    const unit = a < 60 ? `${a} sec` : a < 3600 ? `${Math.round(a / 60)} min` : a < 86400 ? `${Math.round(a / 3600)} h` : `${Math.round(a / 86400)} ${Math.round(a / 86400) === 1 ? 'day' : 'days'}`;
+    return fut ? `in ${unit}` : `${unit} ago`;
   }
   function bytes(v) {
     if (isNil(v)) return DASH;
@@ -125,10 +125,10 @@
 
   // ---------- Status chips ----------
   const STATUS = {
-    DISCOVERED: ['muted', 'Mila (Drive)'], QUEUED: ['muted', 'Line mein'], DOWNLOADING: ['cyan', 'Download ho raha'],
-    READY: ['cyan', 'Ready'], UPLOADING: ['gold', 'Upload ho raha'], PROCESSING: ['gold', 'YouTube processing'],
-    VERIFYING: ['cyan', 'Check ho raha'], COMPLETED: ['green', 'Ho gaya'], FAILED: ['red', 'Fail'],
-    RETRY_WAIT: ['orange', 'Retry ka intezaar'], CANCELLED: ['muted', 'Cancel']
+    DISCOVERED: ['muted', 'Found (Drive)'], QUEUED: ['muted', 'Queued'], DOWNLOADING: ['cyan', 'Downloading'],
+    READY: ['cyan', 'Ready'], UPLOADING: ['gold', 'Uploading'], PROCESSING: ['gold', 'YouTube processing'],
+    VERIFYING: ['cyan', 'Verifying'], COMPLETED: ['green', 'Done'], FAILED: ['red', 'Failed'],
+    RETRY_WAIT: ['orange', 'Waiting to retry'], CANCELLED: ['muted', 'Cancelled']
   };
   const LIVE = new Set(['DOWNLOADING', 'UPLOADING', 'PROCESSING', 'VERIFYING']);
   function statusChip(s) {
@@ -139,18 +139,18 @@
 
   // ---------- States ----------
   function loading(count = 4) {
-    return h('div', { class: 'grid grid-stats', 'aria-busy': 'true', 'aria-label': 'Load ho raha hai' },
+    return h('div', { class: 'grid grid-stats', 'aria-busy': 'true', 'aria-label': 'Loading' },
       Array.from({ length: count }, () => h('div', { class: 'skeleton' })));
   }
   function empty(title, text, action) {
     return h('div', { class: 'state', role: 'status' }, h('h3', null, title), text ? h('p', null, text) : null, action || null);
   }
   function errorState(err, onRetry) {
-    const msg = (err && err.message) || 'Kuch galat ho gaya.';
+    const msg = (err && err.message) || 'Something went wrong.';
     return h('div', { class: 'state error', role: 'alert' },
-      h('h3', null, 'Data load nahi hua'),
+      h('h3', null, 'Could not load data'),
       h('p', null, msg),
-      onRetry ? h('button', { class: 'btn', type: 'button', onclick: onRetry }, 'Dobara try karo') : null);
+      onRetry ? h('button', { class: 'btn', type: 'button', onclick: onRetry }, 'Try again') : null);
   }
   function sectionHead(title, sub, ...actions) {
     return h('div', { class: 'section-head' },
@@ -176,7 +176,7 @@
   }
 
   // ---------- Confirm dialog (destructive actions) ----------
-  function confirmAction(text, okLabel = 'Haan, karo', title = 'Pakka?') {
+  function confirmAction(text, okLabel = 'Yes, continue', title = 'Are you sure?') {
     const dlg = document.getElementById('confirm-dialog');
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-text').textContent = text;
@@ -199,12 +199,12 @@
     setTimeout(() => t.remove(), ms);
   }
 
-  /** Button ko busy dikhata hai jab tak promise chale. */
+  /** Shows the button as busy while the promise runs. */
   async function busy(btn, fn) {
     if (btn.disabled) return;
     const old = Array.from(btn.childNodes);
     btn.disabled = true; btn.setAttribute('aria-busy', 'true');
-    btn.replaceChildren(h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Ruko...');
+    btn.replaceChildren(h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Please wait...');
     try { return await fn(); } finally {
       btn.disabled = false; btn.removeAttribute('aria-busy'); btn.replaceChildren(...old);
     }

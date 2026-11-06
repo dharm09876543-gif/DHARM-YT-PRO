@@ -1,7 +1,7 @@
-"""Verified videos ki Drive files trash karo (YouTube se live dobara verify ke saath).
+"""Trash the Drive files of verified videos (with a live re-verify on YouTube).
 
-  python main.py cleanup            trash karo
-  python main.py cleanup --dry-run  sirf dikhao kya hoga
+  python main.py cleanup            trash files
+  python main.py cleanup --dry-run  only show what would happen
 """
 import sys
 from pathlib import Path
@@ -27,7 +27,7 @@ for ch in ChannelService(eng, cipher).list(enabled_only=True):
                 {"c": ch["channel_id"]})]
         for v in rows:
             why = blocking_reasons(v, settings)
-            print(f"[{'TRASH' if not why else 'RUKA '}] {ch['channel_name']} / {v['filename']}"
+            print(f"[{'TRASH' if not why else 'BLOCK'}] {ch['channel_name']} / {v['filename']}"
                   + ("" if not why else "  -> " + ", ".join(why)))
         continue
     if ch["auth_status"] != "active":
@@ -35,7 +35,7 @@ for ch in ChannelService(eng, cipher).list(enabled_only=True):
     try:
         ctx = factory(ch)
         out = cleanup_channel(eng, ctx.drive, ch["channel_id"], settings, yt=ctx.yt)
-        print(f"{ch['channel_name']}: trash={out['trashed']} ruke={len(out['blocked'])}")
+        print(f"{ch['channel_name']}: trash={out['trashed']} blocked={len(out['blocked'])}")
         for vid, why in out["blocked"].items():
             print(f"   video {vid}: {', '.join(why)}")
     except AuthRevoked as e:

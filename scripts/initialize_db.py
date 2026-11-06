@@ -1,4 +1,4 @@
-"""Database tables banayein: python scripts/initialize_db.py"""
+"""Create database tables: python scripts/initialize_db.py"""
 import sys
 from pathlib import Path
 
@@ -7,4 +7,4 @@ from src.database.connection import get_engine, run_migrations  # noqa: E402
 
 eng = get_engine()
 done = run_migrations(eng)
-print(f"Database: {eng.dialect.name}. Nayi migrations: {done or 'koi nahi (sab pehle se hain)'}")
+print(f"Database: {eng.dialect.name}. New migrations: {done or 'none (all already applied)'}")

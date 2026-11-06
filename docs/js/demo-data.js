@@ -1,10 +1,10 @@
-/* DEMO MODE ke liye NAKLI (sample) data. Koi asli channel, ID, email ya token nahi.
- * Har naam mein "Sample"/"Demo" likha hai taaki galti se asli na lage. */
+/* FAKE (sample) data for DEMO MODE. No real channel, ID, email or token.
+ * Every name contains "Sample"/"Demo" so it is never mistaken for real data. */
 (function () {
   'use strict';
   const DY = (window.DY = window.DY || {});
 
-  // Deterministic pseudo-random (har baar same sample)
+  // Deterministic pseudo-random (same sample every time)
   let seed = 42;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
   const pick = (a) => a[Math.floor(rnd() * a.length)];
@@ -12,7 +12,7 @@
   const H = 3600e3;
   const iso = (ms) => new Date(ms).toISOString();
 
-  const niches = ['Bhakti', 'Comedy', 'Tech', 'Cooking', 'Gaming', 'News', 'Kids', 'Shorts', 'Music', 'Travel', 'Fitness', 'Motivation'];
+  const niches = ['Devotional', 'Comedy', 'Tech', 'Cooking', 'Gaming', 'News', 'Kids', 'Shorts', 'Music', 'Travel', 'Fitness', 'Motivation'];
   const channels = Array.from({ length: 64 }, (_, i) => {
     const n = String(i + 1).padStart(2, '0');
     const auth = i % 17 === 5 ? 'expired' : i % 23 === 7 ? 'not_connected' : 'active';
@@ -53,7 +53,7 @@
       progress,
       size_bytes: Math.round((40 + rnd() * 900) * 1024 * 1024),
       attempts: status === 'FAILED' || status === 'RETRY_WAIT' ? 2 : status === 'COMPLETED' ? 1 : 0,
-      error: status === 'FAILED' ? 'Sample error: quotaExceeded (demo)' : status === 'RETRY_WAIT' ? 'Sample: network timeout, retry 5 min mein' : null,
+      error: status === 'FAILED' ? 'Sample error: quotaExceeded (demo)' : status === 'RETRY_WAIT' ? 'Sample: network timeout, retry in 5 min' : null,
       updated_at: iso(now - i * 0.4 * H),
       youtube_video_id: status === 'COMPLETED' ? null : null
     };
@@ -69,15 +69,15 @@
   }));
 
   const errors = [
-    { at: iso(now - 0.3 * H), source: 'upload', message: 'Sample: quotaExceeded — aaj ka quota khatam (demo)' },
-    { at: iso(now - 2.1 * H), source: 'oauth', message: 'Sample: Sample Kids Channel 07 ka token expire (demo)' },
-    { at: iso(now - 5.4 * H), source: 'drive', message: 'Sample: Demo Folder 12 mein permission nahi (demo)' }
+    { at: iso(now - 0.3 * H), source: 'upload', message: 'Sample: quotaExceeded — today\'s quota used up (demo)' },
+    { at: iso(now - 2.1 * H), source: 'oauth', message: 'Sample: Sample Kids Channel 07 token expired (demo)' },
+    { at: iso(now - 5.4 * H), source: 'drive', message: 'Sample: no permission on Demo Folder 12 (demo)' }
   ];
 
   function series(days) {
     return Array.from({ length: days }, (_, i) => {
       const d = new Date(now - (days - 1 - i) * 24 * H);
-      const isLatest = i === days - 1; // aaj ka data YouTube Analytics mein aksar late aata hai
+      const isLatest = i === days - 1; // today's data often arrives late in YouTube Analytics
       return {
         date: d.toISOString().slice(0, 10),
         views: isLatest ? null : Math.round(8000 + rnd() * 20000 + i * 150),
@@ -149,8 +149,8 @@
         { name: 'Database', status: 'ok', detail: 'Sample: connected' },
         { name: 'YouTube API', status: 'ok', detail: 'Sample: reachable' },
         { name: 'Google Drive API', status: 'ok', detail: 'Sample: reachable' },
-        { name: 'Gemini API', status: 'warn', detail: 'Sample: key set nahi (demo)' },
-        { name: 'OAuth tokens', status: 'warn', detail: 'Sample: 4 channels ka token expire/missing' },
+        { name: 'Gemini API', status: 'warn', detail: 'Sample: key not set (demo)' },
+        { name: 'OAuth tokens', status: 'warn', detail: 'Sample: 4 channels have expired/missing tokens' },
         { name: 'Encryption key', status: 'ok', detail: 'Sample: loaded' },
         { name: 'GitHub Actions', status: 'ok', detail: 'Sample: last run success' }
       ],
@@ -163,13 +163,24 @@
     },
     vpn: {
       sample: true,
-      enabled: false,
+      enabled: true,
       provider: 'Surfshark WireGuard (optional)',
-      status: 'disconnected',
-      server: null,
-      public_ip: null,
+      require_for_channels_with_profile: true,
       last_check_at: iso(now - 0.2 * H),
-      note: 'VPN se YouTube quota nahi badhta. Yeh sirf optional network routing hai.'
+      // Sample only: masked IPs (documentation ranges), no real servers or configs.
+      channels: channels.slice(0, 8).map((c, i) => {
+        const profile = i < 6 ? `ch${String(i + 1).padStart(2, '0')}` : null;
+        const status = !profile ? 'not_required' : i === 4 ? 'failed' : i === 5 ? 'unknown' : 'verified';
+        return {
+          channel_id: c.youtube_channel_id,
+          channel_name: c.name,
+          vpn_profile: profile,
+          status,
+          masked_ip: status === 'verified' ? `185.x.x.${10 + i * 7}` : null,
+          last_check_at: status === 'unknown' || !profile ? null : iso(now - (i + 1) * 0.5 * H)
+        };
+      }),
+      note: 'Sample data. A VPN does not change YouTube API quota (quota is per Google Cloud project). Normal Surfshark servers give shared IPs that can change; a fixed unique IP per channel needs the Dedicated IP add-on (one per IP).'
     }
   };
 })();

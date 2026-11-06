@@ -1,12 +1,12 @@
-"""Resumable upload jo crash/restart ke baad wahi se continue karta hai.
+"""Resumable upload that continues where it left off after a crash/restart.
 
-- Session URI (encrypted) aur bytes_uploaded har chunk ke baad upload_sessions mein.
-- Restart par: active session ho to naya insert NAHI; pehle server se status poochte hain
-  (googleapiclient ka error-state query: PUT 'bytes */size'), phir bacha hua bhejte hain.
-  Agar upload pehle hi poora ho chuka tha to server video resource lauta deta hai.
+- Session URI (encrypted) and bytes_uploaded saved to upload_sessions after every chunk.
+- On restart: with an active session there is NO new insert; we first ask the server for the status
+  (googleapiclient error-state query: PUT 'bytes */size'), then send the rest.
+  If the upload had already completed, the server returns the video resource.
 - 5xx / timeout: src/utils/retry.py exponential backoff.
-- Session gone (404/410): SessionLost - caller reconcile karta hai (channel uploads mein dhoondh kar),
-  andha re-insert kabhi nahi.
+- Session gone (404/410): SessionLost - the caller reconciles (by searching the channel uploads),
+  never a blind re-insert.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ MIN_CHUNK = 256 * 1024
 
 class SessionLost(RuntimeError):
     def __init__(self, session_id: int, bytes_uploaded: int, created_at):
-        super().__init__("Upload session expire/kho gaya")
+        super().__init__("Upload session expired/lost")
         self.session_id, self.bytes_uploaded, self.created_at = session_id, bytes_uploaded, created_at
 
 
@@ -39,7 +39,7 @@ class ResumableUploader:
                  media_factory=_default_media, max_retries: int = 5, sleep=time.sleep,
                  on_progress=None):
         if chunk_size % MIN_CHUNK:
-            raise ValueError("chunk_size 256KB ka multiple hona chahiye")
+            raise ValueError("chunk_size must be a multiple of 256KB")
         self.db, self.cipher, self.yt, self.quota = engine, cipher, yt, quota
         self.chunk = chunk_size
         self.media_factory = media_factory
@@ -75,21 +75,21 @@ class ResumableUploader:
 
     # ---- upload ----
     def upload(self, video_id: int, path: Path, body: dict, mimetype: str | None = None) -> dict:
-        """Video resource (dict, 'id' ke saath) lautata hai."""
+        """Returns the video resource (dict with 'id')."""
         path = Path(path)
         total = path.stat().st_size
         media = self.media_factory(str(path), mimetype, self.chunk)
         request = self.yt.insert_request(body, media)
         sess = self.active_session(video_id)
         if sess and sess.encrypted_session_uri:
-            # Purana session: naya insert nahi. Pehle server se poochho kitna pahuncha.
+            # Existing session: no new insert. First ask the server how much arrived.
             request.resumable_uri = self.cipher.decrypt(sess.encrypted_session_uri)
             request.resumable_progress = int(sess.bytes_uploaded or 0)
             request._in_error_state = True
             sid = sess.id
             started = sess.created_at
         else:
-            # Session row hai par URI kabhi save nahi hua -> koi byte server tak nahi gaya, safe.
+            # Session row exists but the URI was never saved -> no bytes reached the server, safe.
             started = utcnow()
             sid = sess.id if sess else self._new_session(video_id, total)
             if self.quota:
@@ -100,7 +100,7 @@ class ResumableUploader:
                 return request.next_chunk()
             except Exception:
                 if request.resumable_uri:
-                    request._in_error_state = True   # agli koshish pehle status poochhegi
+                    request._in_error_state = True   # the next attempt queries the status first
                 raise
             finally:
                 self._checkpoint(sid, request.resumable_uri, int(request.resumable_progress or 0))
@@ -114,7 +114,7 @@ class ResumableUploader:
                 if is_session_gone(e):
                     self.close_session(sid, "expired")
                     raise SessionLost(sid, int(request.resumable_progress or 0), started) from e
-                raise   # session 'active' rehta hai -> agla run status query se resume karega
+                raise   # session stays 'active' -> the next run resumes via a status query
             if status is not None and self.on_progress:
                 self.on_progress(status.resumable_progress, total)
         self._checkpoint(sid, request.resumable_uri, total)

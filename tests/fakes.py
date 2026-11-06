@@ -1,4 +1,4 @@
-"""Google API fakes - koi network nahi."""
+"""Google API fakes - no network."""
 from __future__ import annotations
 
 import json
@@ -58,8 +58,8 @@ class FakeDriveService:
             return {"id": fileId, "trashed": self.files_db[fileId].get("trashed", False)}
         return _Exec(run)
 
-    def delete(self, **_):  # pragma: no cover - kabhi call nahi hona chahiye
-        raise AssertionError("files.delete call hua! permanent delete band hai")
+    def delete(self, **_):  # pragma: no cover - must never be called
+        raise AssertionError("files.delete was called! permanent delete is disabled")
 
 
 def folder(parents):
@@ -68,12 +68,12 @@ def folder(parents):
 
 # ---------------- resumable upload server ----------------
 class FakeUploadServer:
-    """Resumable upload server ka simulation: session uri -> received bytes."""
+    """Simulated resumable upload server: session uri -> received bytes."""
 
     def __init__(self):
         self.sessions: dict[str, dict] = {}
         self.initiations = 0
-        self.fail_plan: list = []      # har chunk se pehle pop: None | Exception
+        self.fail_plan: list = []      # popped before every chunk: None | Exception
         self.videos: dict[str, dict] = {}
         self.next_video_id = "yt_vid_001"
 
@@ -91,7 +91,7 @@ class _Progress:
 
 
 class FakeInsertRequest:
-    """googleapiclient HttpRequest jaisa: resumable_uri, resumable_progress, _in_error_state, next_chunk."""
+    """googleapiclient HttpRequest-like: resumable_uri, resumable_progress, _in_error_state, next_chunk."""
 
     def __init__(self, server: FakeUploadServer, body: dict, media):
         self.server, self.body, self.media = server, body, media
@@ -117,7 +117,7 @@ class FakeInsertRequest:
             self.resumable_progress = s["received"]
             self._in_error_state = False
         plan = srv.fail_plan.pop(0) if srv.fail_plan else None
-        if plan == "lost_response":          # server ne le liya, jawab nahi aaya
+        if plan == "lost_response":          # server accepted it, response lost
             s = srv.sessions[self.resumable_uri]
             s["received"] = min(total, self.resumable_progress + self.media.chunk)
             raise TimeoutError("network timeout")
@@ -143,7 +143,7 @@ def fake_media_factory(path, mimetype, chunk):
 
 
 class FakeYT:
-    """YouTubeClient jaisa interface."""
+    """YouTubeClient-like interface."""
 
     def __init__(self, server: FakeUploadServer, channel_id: str, quota=None):
         self.server, self.channel_id, self.quota = server, channel_id, quota

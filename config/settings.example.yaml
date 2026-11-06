@@ -7,16 +7,16 @@ uploads:
   default_category_id: "22"       # 22 = People & Blogs
   max_concurrent_uploads: 2       # 1-5
   max_retries: 5
-  max_per_channel_per_run: 2      # ek run mein ek channel ke max uploads
-  chunk_size_mb: 8                # resumable upload chunk (256KB ka multiple)
-  stale_lock_minutes: 90          # itni der purana lock "atka hua" maana jaayega
-  retry_wait_minutes: 30          # fail ke baad dobara koshish
+  max_per_channel_per_run: 2      # max uploads per channel in one run
+  chunk_size_mb: 8                # resumable upload chunk (multiple of 256KB)
+  stale_lock_minutes: 90          # a lock older than this is treated as "stuck"
+  retry_wait_minutes: 30          # wait before retrying after a failure
 
 quota:
-  daily_limit_units: 10000        # Google Cloud Console se asli value dekhein
+  daily_limit_units: 10000        # check the real value in Google Cloud Console
   warning_threshold_units: 8000
-  upload_cost_units: 1600         # andaza; Console se verify karein
-  costs:                          # har operation ke units (Console se verify karein)
+  upload_cost_units: 1600         # estimate; verify in the Console
+  costs:                          # units per operation (verify in the Console)
     videos.insert: 1600
     thumbnails.set: 50
     videos.list: 1
@@ -25,15 +25,19 @@ quota:
 
 drive:
   root_folder_name: "DHARM_YT_PRO"
-  cleanup_mode: "trash"           # sirf trash, permanent delete kabhi nahi
+  cleanup_mode: "trash"           # trash only, never a permanent delete
   cleanup_after_verification: true
-  cleanup_require_thumbnail: true # thumbnail set na ho to video trash nahi hogi
+  cleanup_require_thumbnail: true # do not trash the video if its thumbnail is not set
 
-network:
-  vpn_enabled: false
+vpn:
+  # Phase 9 (optional): upload each channel through its own WireGuard tunnel.
+  # Set a profile per channel: python main.py channels vpn --channel UC... --profile ch01
+  # The config itself goes ONLY into the secret/env var WG_CONF_<PROFILE> (e.g. WG_CONF_CH01).
+  enabled: false
   provider: "Surfshark"
   protocol: "WireGuard"
-  fail_if_connection_unavailable: true
+  require_for_channels_with_profile: true   # tunnel fails or IP unchanged -> skip that channel's uploads (stay QUEUED) + alert
+  ip_check_url: "https://api.ipify.org"     # must return the public IP as plain text (or {"ip": ...})
 
 alerts:
   telegram_enabled: false

@@ -54,10 +54,10 @@ def test_alert_noop_without_env_and_sends_with_env(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc"); monkeypatch.setenv("TELEGRAM_CHAT_ID", "42")
     seen = []
     cl = httpx.Client(transport=httpx.MockTransport(lambda r: seen.append(r) or httpx.Response(200, json={"ok": True})))
-    assert send_alert("Upload ho gaya", client=cl)
-    assert seen[0].url.path == "/bot123:abc/sendMessage" and b"Upload ho gaya" in seen[0].content
+    assert send_alert("Upload done", client=cl)
+    assert seen[0].url.path == "/bot123:abc/sendMessage" and b"Upload done" in seen[0].content
     bad = httpx.Client(transport=httpx.MockTransport(lambda r: (_ for _ in ()).throw(httpx.ConnectError("x"))))
-    assert send_alert("y", client=bad) is False                         # kabhi raise nahi
+    assert send_alert("y", client=bad) is False                         # never raises
 
 
 def test_audit_reports_problems(engine, channel):
@@ -73,7 +73,7 @@ def test_audit_reports_problems(engine, channel):
     update_fields(engine, c_, upload_status="COMPLETED", youtube_video_id="y1", verified_channel_id=cid)
     rep = audit(engine, {"uploads": {"stale_lock_minutes": 90}})
     assert rep["failed"] == [a] and rep["stale"] == [b] and rep["problems"] == 2
-    assert "Drive trash baaki" in rep["text"] and "boom" in rep["text"]
+    assert "Drive trash pending" in rep["text"] and "boom" in rep["text"]
 
 
 def test_workflows_valid_and_guard_database_url():
@@ -82,7 +82,7 @@ def test_workflows_valid_and_guard_database_url():
         data = yaml.safe_load((wf / name).read_text())
         raw = (wf / name).read_text()
         assert "workflow_dispatch" in raw and "DATABASE_URL" in raw
-        assert "secrets.DATABASE_URL" in raw and "DATABASE_URL secret set nahi" in raw
+        assert "secrets.DATABASE_URL" in raw and "DATABASE_URL secret is not set" in raw
         assert "concurrency" in data
         assert "ya29." not in raw and "1//" not in raw
     up = yaml.safe_load((wf / "upload.yml").read_text())

@@ -1,5 +1,5 @@
 """Drive thumbnail -> YouTube thumbnails.set. Limit: JPG/PNG, max 2MB.
-Custom thumbnail ke liye channel phone-verified hona chahiye."""
+Custom thumbnails require a phone-verified channel."""
 from __future__ import annotations
 
 import io
@@ -17,19 +17,19 @@ def apply_thumbnail(engine, video_id: int, yt_video_id: str, drive, yt, thumb_dr
         meta = drive.get(thumb_drive_id)
         mime = meta.get("mimeType", "image/jpeg")
         if mime not in ("image/jpeg", "image/png"):
-            raise ValueError(f"thumbnail format {mime} allowed nahi (JPG/PNG)")
+            raise ValueError(f"thumbnail format {mime} not allowed (JPG/PNG)")
         if int(meta.get("size") or 0) > MAX_BYTES:
-            raise ValueError("thumbnail 2MB se badi hai")
+            raise ValueError("thumbnail is larger than 2MB")
         data = drive.read_bytes(thumb_drive_id)
         if len(data) > MAX_BYTES:
-            raise ValueError("thumbnail 2MB se badi hai")
+            raise ValueError("thumbnail is larger than 2MB")
         resp = yt.set_thumbnail(yt_video_id, media_cls(io.BytesIO(data), mimetype=mime, resumable=False))
         if not (resp or {}).get("items"):
-            raise ValueError("thumbnails.set ka jawab khaali")
+            raise ValueError("empty thumbnails.set response")
         update_fields(engine, video_id, thumbnail_status="set")
         log_event(engine, video_id, "thumbnail", "ok", youtube_video_id=yt_video_id)
         return True
-    except Exception as e:  # noqa: BLE001 - thumbnail fail se video fail nahi hota
+    except Exception as e:  # noqa: BLE001 - a failed thumbnail does not fail the video
         update_fields(engine, video_id, thumbnail_status="failed", last_error=f"thumbnail: {e}"[:500])
         log_event(engine, video_id, "thumbnail", "failed", str(e), yt_video_id)
         return False

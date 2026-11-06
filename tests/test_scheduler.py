@@ -31,7 +31,7 @@ def _disc(engine, cid, fid):
 def test_next_free_slot_respects_lead_tz_and_taken():
     now = datetime(2026, 11, 6, 3, 0, tzinfo=timezone.utc)            # 08:30 IST
     s1 = next_free_slot(["09:00", "17:00"], "Asia/Kolkata", set(), now, lead_minutes=60)
-    assert s1.astimezone(IST).strftime("%d %H:%M") == "06 17:00"      # 09:00 lead ke andar
+    assert s1.astimezone(IST).strftime("%d %H:%M") == "06 17:00"      # 09:00 is inside the lead time
     s2 = next_free_slot(["09:00", "17:00"], "Asia/Kolkata", {s1}, now, 60)
     assert s2.astimezone(IST).strftime("%d %H:%M") == "07 09:00"
     assert next_free_slot([], "Asia/Kolkata", set(), now) is None
@@ -61,7 +61,7 @@ def test_plan_assigns_unique_slots_private(engine, channel):
         sch = c.execute(text("SELECT COUNT(DISTINCT scheduled_at), COUNT(*) FROM schedules")).first()
     assert all(r[0] == "QUEUED" and r[1] == "private" and r[2] for r in rows)
     assert tuple(sch) == (3, 3)
-    assert plan_channel(engine, channel, SCHED) == 0                   # dobara: kuch nahi
+    assert plan_channel(engine, channel, SCHED) == 0                   # again: nothing
 
 
 def test_scheduler_disabled_queues_immediately(engine, channel):
@@ -111,14 +111,14 @@ def test_run_all_isolates_channel_failures(engine, cipher, chsvc, tmp_path, monk
         chsvc.add(cid, f"Ch{i}", f"root{i}"); chsvc.save_tokens(cid, "1//r")
     servers = {}
     factory, quota = _ctx_factory(engine, cipher, servers, tmp_path,
-                                  fail_for={ids[1]: AuthRevoked("reconnect karein")})
+                                  fail_for={ids[1]: AuthRevoked("please reconnect")})
     sched = {"scheduler": {"enabled": True, "slots": ["09:00", "21:00"], "lead_minutes": 60}}
     res = run_all(engine, chsvc.list(), factory, {"uploads": {"max_concurrent_uploads": 1}}, sched,
                   steps=("discover", "plan", "upload"))
     by = {r.channel_id: r for r in res}
     assert by[ids[0]].completed == 1 and by[ids[2]].completed == 1
     assert by[ids[1]].stopped == "auth" and not by[ids[1]].ok
-    assert "ruka: auth" in summary(res)
+    assert "stopped: auth" in summary(res)
 
 
 def test_run_all_concurrent_threads(engine, cipher, chsvc, tmp_path, monkeypatch):

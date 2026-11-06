@@ -1,8 +1,8 @@
-# Har channel ka ek block. channel_id OAuth connect karne ke baad milega.
+# One block per channel. channel_id is filled in after the OAuth connect.
 channels:
   - key: "CHANNEL_001"
-    channel_name: "Mera Pehla Channel"
-    channel_id: ""                 # UCxxxxxxxx (connect ke baad bharein)
+    channel_name: "My First Channel"
+    channel_id: ""                 # UCxxxxxxxx (fill in after connecting)
     drive_folder_id: "PASTE_DRIVE_FOLDER_ID"
     timezone: "Asia/Kolkata"
     enabled: true
@@ -10,4 +10,5 @@ channels:
       privacy: "private"
       category_id: "22"
       tags: ["YouTube", "Video"]
-      description_footer: "Subscribe karein!"
+      description_footer: "Please subscribe!"
+      language: "English"          # Gemini metadata language: English (default) | Hindi | Hinglish

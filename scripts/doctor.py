@@ -1,4 +1,4 @@
-"""Ek command mein poora setup check: python scripts/doctor.py"""
+"""Full setup check in one command: python scripts/doctor.py"""
 import os
 import sys
 from pathlib import Path
@@ -12,7 +12,7 @@ def check(name, passed, hint=""):
     print(f"[{'OK' if passed else 'XX'}] {name}" + ("" if passed else f"  -> {hint}"))
     ok &= passed
 
-check("Python 3.10+", sys.version_info >= (3, 10), "Python update karein")
+check("Python 3.10+", sys.version_info >= (3, 10), "Update Python")
 try:
     import yaml, sqlalchemy, cryptography  # noqa: F401,E401
     check("Libraries installed", True)
@@ -26,7 +26,7 @@ if (ROOT / ".env").exists():
             os.environ.setdefault(k.strip(), v.strip())
 check(".env file", (ROOT / ".env").exists(), "cp .env.example .env")
 check("TOKEN_ENCRYPTION_KEY", bool(os.getenv("TOKEN_ENCRYPTION_KEY")), "python scripts/generate_key.py")
-check("GOOGLE_CLIENT_ID", bool(os.getenv("GOOGLE_CLIENT_ID")), "docs: SETUP_HINDI.md step 2")
+check("GOOGLE_CLIENT_ID", bool(os.getenv("GOOGLE_CLIENT_ID")), "docs: SETUP.md step 2")
 
 from src.config import validate_all  # noqa: E402
 errs = validate_all()
@@ -40,5 +40,5 @@ try:
 except Exception as e:  # noqa: BLE001
     check("Database connection", False, str(e)[:120])
 
-print("\nSab theek!" if ok else "\nUpar 'XX' wali cheezein theek karein.")
+print("\nAll good!" if ok else "\nFix the items marked 'XX' above.")
 sys.exit(0 if ok else 1)

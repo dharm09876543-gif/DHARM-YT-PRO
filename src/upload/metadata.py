@@ -26,7 +26,7 @@ class VideoMetadata:
     made_for_kids: bool = False
 
     def clean(self) -> "VideoMetadata":
-        """Limits ke andar laata hai: < > hata deta hai, length kaat deta hai."""
+        """Brings values within limits: removes < >, truncates length."""
         strip = lambda s: s.replace("<", "").replace(">", "").strip()  # noqa: E731
         self.title = strip(self.title)[:TITLE_MAX].strip()
         d = strip(self.description).encode("utf-8")[:DESC_MAX]
@@ -46,24 +46,24 @@ class VideoMetadata:
     def errors(self, now: datetime | None = None) -> list[str]:
         e = []
         if not self.title.strip():
-            e.append("title khaali hai")
+            e.append("title is empty")
         if len(self.title) > TITLE_MAX:
-            e.append(f"title {TITLE_MAX} akshar se lamba hai")
+            e.append(f"title {TITLE_MAX} characters is too long")
         if len(self.description.encode()) > DESC_MAX:
-            e.append("description 5000 bytes se lambi hai")
+            e.append("description is longer than 5000 bytes")
         if any(c in self.title + self.description for c in "<>"):
-            e.append("< > allowed nahi")
+            e.append("< > are not allowed")
         if self.category_id not in CATEGORIES:
-            e.append(f"category_id {self.category_id} galat hai")
+            e.append(f"category_id {self.category_id} is invalid")
         if self.privacy_status not in VALID_PRIVACY:
-            e.append("privacy galat hai")
+            e.append("privacy is invalid")
         if self.publish_at:
             if self.publish_at.tzinfo is None:
-                e.append("publish_at mein timezone chahiye")
+                e.append("publish_at needs a timezone")
             elif self.publish_at <= (now or datetime.now(timezone.utc)):
-                e.append("publish_at future mein hona chahiye")
+                e.append("publish_at must be in the future")
             if self.privacy_status != "private":
-                e.append("schedule ke liye privacy 'private' honi chahiye")
+                e.append("privacy must be 'private' for a scheduled video")
         return e
 
     def to_youtube_body(self) -> dict:

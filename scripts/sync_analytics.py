@@ -1,6 +1,6 @@
 """YouTube Analytics -> analytics_snapshots.
 
-  python main.py analytics            pichhle 7 din
+  python main.py analytics            last 7 days
   python main.py analytics --days 28
 """
 import argparse
@@ -20,7 +20,7 @@ eng, cipher, settings, _, _ = bootstrap()
 from src.analytics.sync import sync_channel  # noqa: E402
 from src.services.channel_service import ChannelService  # noqa: E402
 
-end = date.today() - timedelta(days=1)          # Analytics data 1-2 din late aata hai
+end = date.today() - timedelta(days=1)          # Analytics data arrives 1-2 days late
 start = end - timedelta(days=a.days - 1)
 factory, bad = make_ctx_factory(eng, cipher, settings), False
 for ch in ChannelService(eng, cipher).list(enabled_only=True):
@@ -28,7 +28,7 @@ for ch in ChannelService(eng, cipher).list(enabled_only=True):
         print(f"Skip {ch['channel_name']}: auth={ch['auth_status']}"); continue
     try:
         n = sync_channel(eng, factory(ch).analytics, ch["channel_id"], start, end)
-        print(f"{ch['channel_name']}: {n} din ka data ({start} - {end})")
-    except Exception as e:  # noqa: BLE001 - ek channel fail, baaki chalein
+        print(f"{ch['channel_name']}: {n} days of data ({start} - {end})")
+    except Exception as e:  # noqa: BLE001 - one channel failing must not stop the rest
         bad = True; print(f"!! {ch['channel_name']}: {type(e).__name__}: {e}")
 sys.exit(1 if bad else 0)

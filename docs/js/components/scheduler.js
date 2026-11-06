@@ -1,18 +1,18 @@
 (function () {
   'use strict';
   const { h, dt, ago, chip, sectionHead, load, empty, confirmAction, toast, busy } = DY.ui;
-  const ST = { pending: ['gold', 'Intezaar'], published: ['green', 'Publish ho gaya'], failed: ['red', 'Fail'], cancelled: ['muted', 'Cancel'] };
+  const ST = { pending: ['gold', 'Waiting'], published: ['green', 'Published'], failed: ['red', 'Failed'], cancelled: ['muted', 'Cancelled'] };
 
   DY.views.scheduler = {
     title: 'Scheduler',
     render(main) {
       const box = h('div');
-      main.append(sectionHead('Scheduler', 'Aage publish hone wale videos. Time aapke device ke timezone mein dikhte hain.',
-        h('a', { href: '#metadata', class: 'btn btn-gold' }, '+ Naya schedule')), box);
+      main.append(sectionHead('Scheduler', 'Videos that will publish later. Times are shown in your device\'s timezone.',
+        h('a', { href: '#metadata', class: 'btn btn-gold' }, '+ New schedule')), box);
 
       load(box, () => DY.api.get('/api/schedules'), (d) => {
         const items = ((d && d.items) || []).slice().sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
-        if (!items.length) { box.append(empty('Koi schedule nahi', 'Metadata Editor mein publish time daal ke schedule karo.')); return; }
+        if (!items.length) { box.append(empty('No schedules', 'Set a publish time in the Metadata Editor to schedule a video.')); return; }
         const list = h('ul', { class: 'list' });
         const draw = () => list.replaceChildren(...items.map((s) => {
           const [tone, label] = ST[s.status] || ['muted', s.status || DY.ui.DASH];
@@ -26,14 +26,14 @@
                 h('span', null, s.privacy || DY.ui.DASH))),
             h('div', { class: 'item-side' },
               chip(tone, label),
-              s.status === 'pending' ? h('button', { class: 'btn btn-sm btn-danger', type: 'button', 'aria-label': `${s.title} ka schedule hatao`, onclick: async (e) => {
+              s.status === 'pending' ? h('button', { class: 'btn btn-sm btn-danger', type: 'button', 'aria-label': `Remove schedule for ${s.title}`, onclick: async (e) => {
                 const btn = e.currentTarget;
-                if (!(await confirmAction(`"${s.title}" ka schedule hata dein? Video publish nahi hoga.`, 'Haan, hatao'))) return;
+                if (!(await confirmAction(`Remove the schedule for "${s.title}"? The video will not be published.`, 'Yes, remove'))) return;
                 busy(btn, async () => {
-                  try { await DY.api.del(`/api/schedules/${encodeURIComponent(s.id)}`); items.splice(items.indexOf(s), 1); toast('Schedule hata diya', 'ok'); items.length ? draw() : box.replaceChildren(empty('Koi schedule nahi', null)); }
+                  try { await DY.api.del(`/api/schedules/${encodeURIComponent(s.id)}`); items.splice(items.indexOf(s), 1); toast('Schedule removed', 'ok'); items.length ? draw() : box.replaceChildren(empty('No schedules', null)); }
                   catch (err) { toast(err.message, 'err'); }
                 });
-              } }, 'Hatao') : null));
+              } }, 'Remove') : null));
         }));
         draw();
         box.append(list);

@@ -2,10 +2,10 @@
   'use strict';
   const { h, icon, sectionHead, toast, busy } = DY.ui;
 
-  // src/upload/metadata.py ke same limits
+  // same limits as src/upload/metadata.py
   const TITLE_MAX = 100;
   const DESC_MAX = 5000;        // bytes
-  const TAGS_TOTAL_MAX = 500;   // characters (sab tags milake)
+  const TAGS_TOTAL_MAX = 500;   // characters (all tags combined)
   const CATEGORIES = { 1: 'Film & Animation', 2: 'Autos', 10: 'Music', 15: 'Pets & Animals', 17: 'Sports', 19: 'Travel', 20: 'Gaming', 22: 'People & Blogs', 23: 'Comedy', 24: 'Entertainment', 25: 'News & Politics', 26: 'Howto & Style', 27: 'Education', 28: 'Science & Technology' };
   const enc = new TextEncoder();
   const byteLen = (s) => enc.encode(s).length;
@@ -18,15 +18,15 @@
       const uid = (n) => `md-${n}`;
       const counter = () => h('span', { class: 'counter', 'aria-live': 'polite' });
 
-      const channel = h('select', { id: uid('channel') }, h('option', { value: '' }, 'Channel chuno...'));
+      const channel = h('select', { id: uid('channel') }, h('option', { value: '' }, 'Choose a channel...'));
       const fileName = h('input', { id: uid('file'), type: 'text', placeholder: 'video_file.mp4 (optional)', autocomplete: 'off' });
-      const notes = h('textarea', { id: uid('notes'), rows: 3, placeholder: 'Video kis baare mein hai? 1-2 line likho, AI isse title banayega.', style: { minHeight: '80px' } });
-      const language = h('select', { id: uid('lang') }, ['Hindi', 'Hinglish', 'English'].map((l) => h('option', { value: l }, l)));
-      const title = h('input', { id: uid('title'), type: 'text', maxlength: 120, placeholder: 'Video ka title', required: true, autocomplete: 'off', 'aria-describedby': uid('title-c') });
+      const notes = h('textarea', { id: uid('notes'), rows: 3, placeholder: 'What is the video about? Write 1-2 lines and the AI will create a title from it.', style: { minHeight: '80px' } });
+      const language = h('select', { id: uid('lang') }, ['English', 'Hindi', 'Hinglish'].map((l) => h('option', { value: l }, l)));
+      const title = h('input', { id: uid('title'), type: 'text', maxlength: 120, placeholder: 'Video title', required: true, autocomplete: 'off', 'aria-describedby': uid('title-c') });
       const titleC = counter(); titleC.id = uid('title-c');
       const desc = h('textarea', { id: uid('desc'), rows: 8, placeholder: 'Description...', 'aria-describedby': uid('desc-c') });
       const descC = counter(); descC.id = uid('desc-c');
-      const tagInput = h('input', { id: uid('tags'), type: 'text', placeholder: 'Tag likho aur Enter dabao', autocomplete: 'off', 'aria-describedby': uid('tags-c') });
+      const tagInput = h('input', { id: uid('tags'), type: 'text', placeholder: 'Type a tag and press Enter', autocomplete: 'off', 'aria-describedby': uid('tags-c') });
       const tagC = counter(); tagC.id = uid('tags-c');
       const tagList = h('div', { class: 'tag-list', 'aria-label': 'Tags' });
       const category = h('select', { id: uid('cat') }, Object.entries(CATEGORIES).map(([k, v]) => h('option', { value: k, selected: k === '22' }, `${v} (${k})`)));
@@ -51,7 +51,7 @@
       }
       function drawTags() {
         tagList.replaceChildren(...tags.map((t, i) => h('span', { class: 'tag' }, t,
-          h('button', { type: 'button', 'aria-label': `Tag ${t} hatao`, onclick: () => { tags.splice(i, 1); drawTags(); } }, '×'))));
+          h('button', { type: 'button', 'aria-label': `Remove tag ${t}`, onclick: () => { tags.splice(i, 1); drawTags(); } }, '×'))));
         update();
       }
       function addTags(raw) {
@@ -69,19 +69,19 @@
 
       function validate() {
         const e = [];
-        if (!title.value.trim()) e.push('Title khaali hai.');
-        if (title.value.length > TITLE_MAX) e.push(`Title ${TITLE_MAX} akshar se lamba hai.`);
-        if (byteLen(desc.value) > DESC_MAX) e.push('Description 5000 bytes se lambi hai.');
-        if (/[<>]/.test(title.value + desc.value)) e.push('< aur > allowed nahi hain.');
-        if (tagCost(tags) > TAGS_TOTAL_MAX) e.push('Tags 500 akshar se zyada hain.');
-        if (!channel.value) e.push('Channel chuno.');
-        if (schedule.value && new Date(schedule.value).getTime() <= Date.now()) e.push('Schedule time future mein hona chahiye.');
+        if (!title.value.trim()) e.push('Title is empty.');
+        if (title.value.length > TITLE_MAX) e.push(`Title is longer than ${TITLE_MAX} characters.`);
+        if (byteLen(desc.value) > DESC_MAX) e.push('Description is longer than 5000 bytes.');
+        if (/[<>]/.test(title.value + desc.value)) e.push('< and > are not allowed.');
+        if (tagCost(tags) > TAGS_TOTAL_MAX) e.push('Tags exceed 500 characters.');
+        if (!channel.value) e.push('Choose a channel.');
+        if (schedule.value && new Date(schedule.value).getTime() <= Date.now()) e.push('Schedule time must be in the future.');
         return e;
       }
 
       const aiBtn = h('button', { class: 'btn btn-gold', type: 'button', onclick: (e) => busy(e.currentTarget, async () => {
-        if (!notes.value.trim() && !fileName.value.trim()) { toast('Pehle notes ya file name likho.', 'warn'); notes.focus(); return; }
-        if ((title.value || desc.value || tags.length) && !(await DY.ui.confirmAction('AI ka result abhi likha hua title, description aur tags badal dega. Theek hai?', 'Haan, badlo'))) return;
+        if (!notes.value.trim() && !fileName.value.trim()) { toast('Write some notes or a file name first.', 'warn'); notes.focus(); return; }
+        if ((title.value || desc.value || tags.length) && !(await DY.ui.confirmAction('The AI result will replace the current title, description and tags. Continue?', 'Yes, replace'))) return;
         try {
           const opt = channel.selectedOptions[0];
           const r = await DY.api.post('/api/ai/metadata', {
@@ -91,12 +91,12 @@
           title.value = String(r.title || '').slice(0, TITLE_MAX);
           desc.value = String(r.description || '');
           tags = []; addTags((r.tags || []).join(','));
-          toast(DY.api.isDemo() ? 'Sample AI result (demo mode — Gemini call nahi hua)' : 'Gemini ne bana diya ✓ Ek baar padh lo.', DY.api.isDemo() ? 'warn' : 'ok');
+          toast(DY.api.isDemo() ? 'Sample AI result (demo mode — no Gemini call was made)' : 'Generated by Gemini ✓ Please review it once.', DY.api.isDemo() ? 'warn' : 'ok');
         } catch (err) { toast(err.message, 'err'); }
-      }) }, icon('spark'), ' AI se banao (Gemini)');
+      }) }, icon('spark'), ' Generate with AI (Gemini)');
       aiBtn.querySelector('svg').style.width = '18px';
 
-      const saveBtn = h('button', { class: 'btn btn-gold', type: 'submit' }, 'Save karo');
+      const saveBtn = h('button', { class: 'btn btn-gold', type: 'submit' }, 'Save');
       const form = h('form', { class: 'stack', novalidate: true, onsubmit: (e) => {
         e.preventDefault();
         const errs = validate();
@@ -112,19 +112,19 @@
               publish_at: schedule.value ? new Date(schedule.value).toISOString() : null,
               made_for_kids: kids.checked
             });
-            toast(`Save ho gaya ✓${DY.api.isDemo() ? ' (demo — kuch save nahi hua)' : ''}`, 'ok');
+            toast(`Saved ✓${DY.api.isDemo() ? ' (demo — nothing was saved)' : ''}`, 'ok');
           } catch (err) { toast(err.message, 'err'); }
         });
       } },
         h('div', { class: 'card stack' },
-          h('div', { class: 'card-head' }, h('h3', null, '1. Video aur AI'), h('span', { class: 'chip chip-gold' }, 'Gemini')),
+          h('div', { class: 'card-head' }, h('h3', null, '1. Video and AI'), h('span', { class: 'chip chip-gold' }, 'Gemini')),
           h('div', { class: 'form-grid two' },
             h('div', { class: 'field' }, h('label', { for: uid('channel') }, 'Channel'), channel),
             h('div', { class: 'field' }, h('label', { for: uid('file') }, 'File name'), fileName),
-            h('div', { class: 'field span-2' }, h('label', { for: uid('notes') }, 'Video ke notes'), notes),
-            h('div', { class: 'field' }, h('label', { for: uid('lang') }, 'Bhasha'), language),
+            h('div', { class: 'field span-2' }, h('label', { for: uid('notes') }, 'Video notes'), notes),
+            h('div', { class: 'field' }, h('label', { for: uid('lang') }, 'Language'), language),
             h('div', { class: 'field', style: { justifyContent: 'flex-end' } }, aiBtn)),
-          h('p', { class: 'hint' }, 'AI ka result hamesha ek baar khud padh lo. Gemini key sirf backend par rehti hai, is page par nahi.')),
+          h('p', { class: 'hint' }, 'Always review the AI result yourself. The Gemini key lives only on the backend, never on this page.')),
         h('div', { class: 'card stack' },
           h('h3', null, '2. Title, description, tags'),
           h('div', { class: 'field' }, h('div', { class: 'field-row' }, h('label', { for: uid('title') }, 'Title'), titleC), title),
@@ -136,23 +136,23 @@
             h('div', { class: 'field' }, h('label', { for: uid('cat') }, 'Category'), category),
             h('div', { class: 'field' }, h('label', { for: uid('privacy') }, 'Privacy'), privacy),
             h('div', { class: 'field' }, h('label', { for: uid('sched') }, 'Schedule (publish time)'), schedule,
-              h('span', { class: 'hint', id: uid('sched-h') }, 'Schedule lagane par privacy apne aap Private ho jaati hai (YouTube rule). Time aapke phone ke timezone mein.')),
+              h('span', { class: 'hint', id: uid('sched-h') }, 'Scheduling sets privacy to Private automatically (YouTube rule). Time is in your phone\'s timezone.')),
             h('div', { class: 'field', style: { justifyContent: 'center' } },
               h('label', { style: { display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600 } }, kids, 'Made for kids'))),
           errBox,
           h('div', { class: 'btn-row' }, saveBtn,
             h('button', { class: 'btn btn-ghost', type: 'button', onclick: async () => {
-              if (await DY.ui.confirmAction('Form ki saari likhi cheezein mit jaayengi.', 'Haan, saaf karo')) { form.reset(); tags = []; drawTags(); errBox.hidden = true; }
-            } }, 'Saaf karo')))
+              if (await DY.ui.confirmAction('Everything typed in the form will be cleared.', 'Yes, clear')) { form.reset(); tags = []; drawTags(); errBox.hidden = true; }
+            } }, 'Clear')))
       );
       errBox.tabIndex = -1;
 
-      main.append(sectionHead('Metadata Editor', 'Title 100 akshar, description 5000 bytes, tags 500 akshar — YouTube ki limits'), form);
+      main.append(sectionHead('Metadata Editor', 'Title 100 characters, description 5000 bytes, tags 500 characters — YouTube limits'), form);
       update();
 
       DY.api.get('/api/channels').then((d) => {
         ((d && d.items) || []).filter((c) => c.enabled).forEach((c) => channel.append(h('option', { value: c.id }, c.name)));
-      }).catch((e) => toast(`Channels load nahi hue: ${e.message}`, 'err'));
+      }).catch((e) => toast(`Could not load channels: ${e.message}`, 'err'));
     }
   };
 })();

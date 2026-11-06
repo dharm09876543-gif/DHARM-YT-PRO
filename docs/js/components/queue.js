@@ -13,13 +13,13 @@
       const summary = h('div', { class: 'tag-list', style: { marginBottom: '12px' } });
       const seg = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Queue filter' });
       const listBox = h('div');
-      [['active', 'Chal rahe'], ['FAILED', 'Fail'], ['COMPLETED', 'Ho gaye'], ['all', 'Sab']].forEach(([k, l]) =>
+      [['active', 'Active'], ['FAILED', 'Failed'], ['COMPLETED', 'Done'], ['all', 'All']].forEach(([k, l]) =>
         seg.append(h('button', { type: 'button', 'aria-pressed': String(k === filter), onclick: (e) => {
           filter = k; seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === e.currentTarget))); draw();
         } }, l)));
 
       main.append(
-        sectionHead('Batch Upload Queue', 'Har video ka live status. Fail hua to Retry dabao.', seg),
+        sectionHead('Batch Upload Queue', 'Live status of every video. If one fails, press Retry.', seg),
         h('p', { class: 'hint' }, 'Flow: ', ORDER.slice(0, 8).map((s, i) => [i ? ' → ' : '', STATUS[s][1]])),
         summary,
         listBox
@@ -30,8 +30,8 @@
         items.forEach((j) => { counts[j.status] = (counts[j.status] || 0) + 1; });
         summary.replaceChildren(...ORDER.filter((s) => counts[s]).map((s) => h('span', null, statusChip(s), ' ', h('span', { class: 'small muted' }, `×${counts[s]}`))));
         const rows = items.filter((j) => filter === 'all' ? true : filter === 'active' ? ACTIVE.includes(j.status) : j.status === filter);
-        if (!items.length) { listBox.replaceChildren(empty('Queue khaali hai', 'Drive folder mein video daalo, agla scan inhe yahan le aayega.', h('a', { href: '#drive', class: 'btn btn-gold' }, 'Drive dekho'))); return; }
-        if (!rows.length) { listBox.replaceChildren(empty('Is filter mein kuch nahi', null)); return; }
+        if (!items.length) { listBox.replaceChildren(empty('Queue is empty', 'Put videos in a Drive folder; the next scan brings them here.', h('a', { href: '#drive', class: 'btn btn-gold' }, 'View Drive'))); return; }
+        if (!rows.length) { listBox.replaceChildren(empty('Nothing matches this filter', null)); return; }
         listBox.replaceChildren(h('ul', { class: 'list' }, rows.map(row)));
       }
 
@@ -40,18 +40,18 @@
         const showPct = ['DOWNLOADING', 'UPLOADING', 'FAILED', 'RETRY_WAIT'].includes(j.status);
         const actions = h('div', { class: 'btn-row' });
         if (['FAILED', 'RETRY_WAIT', 'CANCELLED'].includes(j.status)) {
-          actions.append(h('button', { class: 'btn btn-sm btn-cyan', type: 'button', 'aria-label': `${j.file_name} retry karein`, onclick: (e) => busy(e.currentTarget, async () => {
-            try { await DY.api.post(`/api/queue/${encodeURIComponent(j.id)}/retry`); j.status = 'QUEUED'; j.error = null; j.progress = 0; toast('Retry line mein daal diya ✓', 'ok'); draw(); }
+          actions.append(h('button', { class: 'btn btn-sm btn-cyan', type: 'button', 'aria-label': `Retry ${j.file_name}`, onclick: (e) => busy(e.currentTarget, async () => {
+            try { await DY.api.post(`/api/queue/${encodeURIComponent(j.id)}/retry`); j.status = 'QUEUED'; j.error = null; j.progress = 0; toast('Queued for retry ✓', 'ok'); draw(); }
             catch (err) { toast(err.message, 'err'); }
           }) }, '↻ Retry'));
         }
         if (ACTIVE.includes(j.status)) {
-          actions.append(h('button', { class: 'btn btn-sm btn-danger', type: 'button', 'aria-label': `${j.file_name} cancel karein`, onclick: async (e) => {
+          actions.append(h('button', { class: 'btn btn-sm btn-danger', type: 'button', 'aria-label': `Cancel ${j.file_name}`, onclick: async (e) => {
             const btn = e.currentTarget;
-            const ok = await confirmAction(`"${j.file_name}" ka upload cancel karna hai? Drive file safe rahegi, sirf yeh job rukega.`, 'Haan, cancel karo');
+            const ok = await confirmAction(`Cancel the upload of "${j.file_name}"? The Drive file stays safe; only this job stops.`, 'Yes, cancel');
             if (!ok) return;
             busy(btn, async () => {
-              try { await DY.api.post(`/api/queue/${encodeURIComponent(j.id)}/cancel`); j.status = 'CANCELLED'; toast('Cancel ho gaya', 'ok'); draw(); }
+              try { await DY.api.post(`/api/queue/${encodeURIComponent(j.id)}/cancel`); j.status = 'CANCELLED'; toast('Cancelled', 'ok'); draw(); }
               catch (err) { toast(err.message, 'err'); }
             });
           } }, 'Cancel'));
@@ -63,7 +63,7 @@
               h('div', { class: 'item-meta' },
                 h('span', null, j.channel_name || DY.ui.DASH),
                 h('span', null, bytes(j.size_bytes)),
-                h('span', null, `Try: ${j.attempts ?? DY.ui.DASH}`),
+                h('span', null, `Attempts: ${j.attempts ?? DY.ui.DASH}`),
                 h('span', null, ago(j.updated_at)))),
             statusChip(j.status)),
           showPct || tone ? h('div', null, progress(j.progress, tone, `${j.file_name} progress`), showPct ? h('div', { class: 'small muted', style: { marginTop: '4px' } }, j.progress == null ? DY.ui.DASH : `${j.progress}%`) : null) : null,

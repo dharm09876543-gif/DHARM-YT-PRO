@@ -1,6 +1,6 @@
 """Google Drive v3 wrapper: list videos, subfolders, thumbnails, sidecars, download, trash.
 
-Kabhi files.delete call nahi hota - sirf trash (files.update trashed=true).
+files.delete is never called - trash only (files.update trashed=true).
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ class DriveClient:
         return None
 
     def list_videos(self, folder_id: str) -> list[dict]:
-        """Folder + uska 'videos' subfolder; sirf video/* files, purani pehle."""
+        """Folder + its 'videos' subfolder; video/* files only, oldest first."""
         folders = [folder_id]
         sub = self.subfolder(folder_id, "videos")
         if sub:
@@ -65,7 +65,7 @@ class DriveClient:
         return None
 
     def find_sidecar(self, folder_ids: list[str], video_name: str) -> dict | None:
-        """Video ke saath same naam ki .json ya .txt (title/description/tags)."""
+        """A .json or .txt next to the video with the same name (title/description/tags)."""
         want = basename(video_name)
         for fid in folder_ids:
             for f in self.children(fid):
@@ -100,7 +100,7 @@ class DriveClient:
                     h.update(block)
             if h.hexdigest() != expected_md5:
                 path.unlink(missing_ok=True)
-                raise IOError("Download kharab: md5 match nahi hua")
+                raise IOError("Download corrupted: md5 mismatch")
         return path
 
     def trash(self, file_id: str) -> dict:

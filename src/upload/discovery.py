@@ -1,6 +1,6 @@
-"""Drive se naye videos dhoondhna -> videos table (DISCOVERED).
+"""Find new videos in Drive -> videos table (DISCOVERED).
 
-Metadata priority: sidecar (.json/.txt same naam) > Gemini (GEMINI_API_KEY ho to) > filename.
+Metadata priority: sidecar (.json/.txt with the same name) > Gemini (if GEMINI_API_KEY is set) > filename.
 """
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def parse_sidecar(name: str, raw: bytes) -> dict:
         out = {k: data[k] for k in ("title", "description", "category_id", "privacy") if data.get(k)}
         out["tags"] = tags
         return out
-    # .txt: line 1 = title; "tags: a, b" line; baaki description
+    # .txt: line 1 = title; "tags: a, b" line; the rest is the description
     lines = s.splitlines()
     title = lines[0].strip() if lines else ""
     tags, desc = [], []
@@ -62,7 +62,7 @@ def build_metadata(drive: DriveClient, f: dict, folders: list[str], channel: dic
         try:
             meta = parse_sidecar(side["name"], drive.read_bytes(side["id"]))
         except Exception as e:  # noqa: BLE001
-            log.warning("Sidecar padh nahi paaye (%s): %s", side["name"], e)
+            log.warning("Could not read sidecar (%s): %s", side["name"], e)
     if not meta.get("title"):
         gm = gemini
         if gm is None and os.getenv("GEMINI_API_KEY"):
@@ -71,12 +71,13 @@ def build_metadata(drive: DriveClient, f: dict, folders: list[str], channel: dic
         if gm is not None:
             try:
                 g = gm.generate(f["name"], channel=channel.get("channel_name", ""),
+                                language=defaults.get("language") or "English",
                                 footer=defaults.get("description_footer", ""),
                                 extra_tags=defaults.get("tags"))
                 meta = {"title": g.title, "description": g.description, "tags": g.tags,
                         "category_id": g.category_id}
             except Exception as e:  # noqa: BLE001
-                log.warning("Gemini fail, filename title use hoga: %s", e)
+                log.warning("Gemini failed, using the filename as title: %s", e)
     if not meta.get("title"):
         footer = defaults.get("description_footer", "")
         meta = {"title": title_from_filename(f["name"]), "description": footer,
@@ -116,6 +117,6 @@ def discover_channel(engine: Engine, channel: dict, drive: DriveClient,
                 res.inserted += 1
             else:
                 res.skipped += 1
-        except Exception as e:  # noqa: BLE001 - ek file ki galti baaki ko na roke
+        except Exception as e:  # noqa: BLE001 - one bad file must not block the rest
             res.errors.append(f"{f.get('name')}: {e}")
     return res

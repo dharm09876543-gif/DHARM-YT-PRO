@@ -20,12 +20,12 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ]; then echo "GEMINI_API_KEY secret nahi mila"; exit 1; fi
+          if [ -z "$GEMINI_API_KEY" ]; then echo "GEMINI_API_KEY secret not found"; exit 1; fi
           python - <<'EOF'
           from src.ai.gemini import GeminiMetadata
           g = GeminiMetadata()
           try:
-              m = g.generate("village_cooking_aloo_paratha.mp4", notes="desi khana recipe", language="Hinglish")
+              m = g.generate("village_cooking_aloo_paratha.mp4", notes="village-style home cooking recipe", language="English")
           except Exception as e:
               print("TRIED:", g.tried)
               print("FAIL:", type(e).__name__, e)

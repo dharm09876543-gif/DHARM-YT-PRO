@@ -6,7 +6,7 @@ from src.database.connection import get_engine, run_migrations
 
 @pytest.fixture
 def engine(tmp_path):
-    pg = os.getenv("TEST_DATABASE_URL")       # CI: real PostgreSQL par bhi same tests (opt-in)
+    pg = os.getenv("TEST_DATABASE_URL")       # CI: the same tests on real PostgreSQL too (opt-in)
     if pg:
         from sqlalchemy import text
         eng = get_engine(pg)

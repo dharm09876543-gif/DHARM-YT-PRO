@@ -19,7 +19,7 @@
       const sel = h('select', { 'aria-label': 'Sort by', style: { width: 'auto' } }, COLS.map(([k, l]) => h('option', { value: k, selected: k === sortKey }, `Sort: ${l}`)));
       sel.addEventListener('change', () => { sortKey = sel.value; dir = -1; draw(); });
       const box = h('div');
-      main.append(sectionHead('Top 50 Channels', 'Leaderboard. Jahan data nahi ("—") wo neeche rehte hain.', sel), box);
+      main.append(sectionHead('Top 50 Channels', 'Leaderboard. Channels without data ("—") are listed last.', sel), box);
 
       function sorted() {
         return items.slice().sort((a, b) => {
@@ -31,11 +31,11 @@
         }).slice(0, 50);
       }
       function draw() {
-        if (!items.length) { box.replaceChildren(empty('Koi channel nahi', null)); return; }
+        if (!items.length) { box.replaceChildren(empty('No channels', null)); return; }
         sel.value = sortKey;
         const head = h('tr', null, h('th', { scope: 'col' }, '#'), h('th', { scope: 'col' }, 'Channel'),
           COLS.map(([k, l]) => h('th', { scope: 'col', class: 'num', 'aria-sort': k === sortKey ? (dir < 0 ? 'descending' : 'ascending') : 'none' },
-            h('button', { class: 'sort', type: 'button', 'aria-label': `${l} se sort karein`, onclick: () => { if (sortKey === k) dir = -dir; else { sortKey = k; dir = -1; } draw(); } },
+            h('button', { class: 'sort', type: 'button', 'aria-label': `Sort by ${l}`, onclick: () => { if (sortKey === k) dir = -dir; else { sortKey = k; dir = -1; } draw(); } },
               l, k === sortKey ? (dir < 0 ? ' ▼' : ' ▲') : ''))));
         const rows = sorted().map((c, i) => h('tr', null,
           h('td', { class: `rank${i < 3 ? ' top' : ''}` }, i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1),

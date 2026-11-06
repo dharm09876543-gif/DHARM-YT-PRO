@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="hi-Latn">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,37 +11,37 @@
 </head>
 <body class="doc-page">
   <main class="doc">
-    <p><a href="index.html" class="btn btn-ghost btn-sm">← Dashboard par wapas</a></p>
+    <p><a href="index.html" class="btn btn-ghost btn-sm">← Back to dashboard</a></p>
     <h1>Privacy Policy</h1>
     <p class="muted">DHARM YT PRO · Last updated: November 2026</p>
 
-    <h2>Yeh app kya karta hai</h2>
-    <p>DHARM YT PRO ek private tool hai jo channel owner ki permission (Google OAuth) se Google Drive se videos lekar unke apne YouTube channels par upload, schedule aur analytics dikhata hai. Yeh public service nahi hai.</p>
+    <h2>What this app does</h2>
+    <p>DHARM YT PRO is a private tool that, with the channel owner's permission (Google OAuth), takes videos from Google Drive, uploads and schedules them on the owner's own YouTube channels, and shows analytics. It is not a public service.</p>
 
-    <h2>Kaunsa data use hota hai</h2>
+    <h2>What data is used</h2>
     <ul>
-      <li><strong>YouTube Data API v3:</strong> video upload, title/description/tags set karna, channel info.</li>
-      <li><strong>YouTube Analytics API:</strong> views, watch time, subscribers jaise aggregate numbers.</li>
-      <li><strong>Google Drive API:</strong> sirf configured folders se video files padhna, aur verified upload ke baad file ko Trash mein bhejna (permanent delete kabhi nahi).</li>
-      <li><strong>Gemini API:</strong> title/description/tags ke suggestions. Sirf aapke diye notes/file name bheje jaate hain.</li>
+      <li><strong>YouTube Data API v3:</strong> uploading videos, setting title/description/tags, channel info.</li>
+      <li><strong>YouTube Analytics API:</strong> aggregate numbers such as views, watch time and subscribers.</li>
+      <li><strong>Google Drive API:</strong> reading video files only from configured folders, and moving a file to Trash after a verified upload (never a permanent delete).</li>
+      <li><strong>Gemini API:</strong> suggestions for title/description/tags. Only the notes/file name you provide are sent.</li>
     </ul>
 
-    <h2>Data kahan rehta hai</h2>
+    <h2>Where data is kept</h2>
     <ul>
-      <li>OAuth tokens encrypted (Fernet) form mein sirf owner ke apne backend database mein rehte hain.</li>
-      <li>Yeh dashboard (GitHub Pages) ek static website hai. Isme koi secret, token ya private data nahi hota.</li>
-      <li>Dashboard aapke browser mein sirf do cheezein save karta hai: backend URL (localStorage) aur login session token (sessionStorage — tab band karte hi hat jaata hai).</li>
-      <li>Service worker sirf app ki files (HTML/CSS/JS/icons) cache karta hai; API responses kabhi cache nahi hote.</li>
+      <li>OAuth tokens are stored encrypted (Fernet), only in the owner's own backend database.</li>
+      <li>This dashboard (GitHub Pages) is a static website. It contains no secrets, tokens or private data.</li>
+      <li>The dashboard saves only two things in your browser: the backend URL (localStorage) and the login session token (sessionStorage — removed as soon as you close the tab).</li>
+      <li>The service worker caches only the app files (HTML/CSS/JS/icons); API responses are never cached.</li>
     </ul>
 
     <h2>Sharing</h2>
-    <p>Data kisi third party ko becha ya share nahi kiya jaata. Google APIs ka use <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener noreferrer">Google API Services User Data Policy</a> ke Limited Use rules ke hisaab se hota hai.</p>
+    <p>Data is never sold or shared with third parties. Google APIs are used in line with the Limited Use rules of the <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener noreferrer">Google API Services User Data Policy</a>.</p>
 
-    <h2>Permission wapas lena</h2>
-    <p>Aap kabhi bhi <a href="https://myaccount.google.com/permissions" rel="noopener noreferrer">Google Account → Third-party access</a> se is app ki permission hata sakte hain. Owner se kehkar apna channel aur uske encrypted tokens backend se delete bhi karwa sakte hain.</p>
+    <h2>Revoking permission</h2>
+    <p>You can remove this app's permission at any time from <a href="https://myaccount.google.com/permissions" rel="noopener noreferrer">Google Account → Third-party access</a>. You can also ask the owner to delete your channel and its encrypted tokens from the backend.</p>
 
     <h2>Contact</h2>
-    <p>Sawal ho to repository ke GitHub Issues mein likhein.</p>
+    <p>For questions, open an issue in the repository's GitHub Issues.</p>
   </main>
 </body>
 </html>

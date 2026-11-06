@@ -74,17 +74,17 @@ def test_connect_registers_real_channel_and_encrypts(engine, chsvc):
 
 
 def test_connect_existing_updates_and_mismatch_rejected(chsvc):
-    chsvc.add(CID, "Purana Naam", "f")
-    r = connect_channel(chsvc, _creds(), FakeYTChannels([_item(title="Naya")]))
-    assert not r.registered and chsvc.get(CID)["channel_name"] == "Naya"
-    with pytest.raises(OAuthError, match="Galat channel"):
+    chsvc.add(CID, "Old Name", "f")
+    r = connect_channel(chsvc, _creds(), FakeYTChannels([_item(title="New")]))
+    assert not r.registered and chsvc.get(CID)["channel_name"] == "New"
+    with pytest.raises(OAuthError, match="Wrong channel"):
         connect_channel(chsvc, _creds(), FakeYTChannels([_item()]), expected_channel_id="UC" + "e" * 22)
     with pytest.raises(OAuthError, match="Refresh token"):
         connect_channel(chsvc, _creds(rt=None), FakeYTChannels([_item()]))
 
 
 def test_connect_errors_no_channel_or_no_folder(chsvc):
-    with pytest.raises(OAuthError, match="koi YouTube channel"):
+    with pytest.raises(OAuthError, match="No YouTube channel"):
         fetch_own_channel(FakeYTChannels([]))
     with pytest.raises(OAuthError, match="--folder"):
         connect_channel(chsvc, _creds(), FakeYTChannels([_item()]))
@@ -114,10 +114,10 @@ def test_token_refresh_builds_credentials(engine, chsvc, channel):
 def test_invalid_grant_marks_revoked(chsvc, channel):
     chsvc.save_tokens(channel["channel_id"], "1//dead")
     tm = TokenManager(chsvc, "cid", "sec", credentials_cls=FakeCreds, request_factory=object)
-    with pytest.raises(AuthRevoked, match="dobara"):
+    with pytest.raises(AuthRevoked, match="reconnect"):
         tm.credentials(channel["channel_id"])
     assert chsvc.get(channel["channel_id"])["auth_status"] == "revoked"
-    with pytest.raises(AuthRevoked):        # revoked ke baad refresh try bhi nahi
+    with pytest.raises(AuthRevoked):        # after revoke, no refresh is even attempted
         tm.credentials(channel["channel_id"])
 
 

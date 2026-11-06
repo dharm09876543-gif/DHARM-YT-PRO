@@ -9,6 +9,6 @@ CREATE TABLE IF NOT EXISTS upload_sessions (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
--- ek video ka sirf ek active session
+-- only one active session per video
 CREATE UNIQUE INDEX IF NOT EXISTS uq_active_session
     ON upload_sessions(video_id) WHERE session_status = 'active';

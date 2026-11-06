@@ -1,7 +1,7 @@
-"""YouTube Analytics API v2 -> analytics_snapshots (din-wise).
+"""YouTube Analytics API v2 -> analytics_snapshots (per day).
 
 Metrics: views, estimatedMinutesWatched, subscribersGained, subscribersLost.
-estimated_revenue ke liye monetary scope chahiye - abhi NULL. Jo metric na mile, NULL.
+estimated_revenue needs the monetary scope - NULL for now. Any missing metric is stored as NULL.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def fetch_daily(analytics, start: date, end: date) -> list[dict]:
         rec = dict(zip(heads, row))
         item = {"report_date": rec.get("day")}
         for m, col in COLUMN.items():
-            item[col] = rec.get(m)       # None agar metric nahi aaya
+            item[col] = rec.get(m)       # None if the metric was not returned
         out.append(item)
     return out
 

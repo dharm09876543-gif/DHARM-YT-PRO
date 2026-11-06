@@ -3,7 +3,7 @@
 ```text
 PHASE: 1 - Project Isolation
 IMPLEMENTED: Independent repo scaffold (blueprint structure), config loader + validator
-  (Hindi error messages), token encryption (Fernet), secret-redacting logger,
+  (error messages; English since 2026-11-06), token encryption (Fernet), secret-redacting logger,
   exponential-backoff retry, SQLite/Postgres connection + idempotent migration runner,
   doctor/keygen/validate/init-db commands, CI workflow with Postgres + secret scan.
 FILES CREATED: see repo tree
@@ -29,7 +29,7 @@ RAJ FB PRO: not touched, not referenced, no shared secrets.
 PHASE: 6 + 7 (early) - Gemini AI metadata + Channel Manager
 IMPLEMENTED: src/upload/metadata.py (YouTube limits: title 100, desc 5000 bytes, tags 500,
   categories, schedule forces private), src/ai/gemini.py (Gemini REST, JSON output,
-  Hindi/English/Hinglish, footer + extra tags, key via header only),
+  English (default since 2026-11-06)/Hindi/Hinglish, footer + extra tags, key via header only),
   src/services/channel_service.py (add/list/enable/disable/rename/folder/timezone,
   encrypted tokens, auth status, safe remove, health), CLI: main.py channels / main.py ai
 TESTS RUN: pytest (27 tests)
@@ -95,3 +95,47 @@ NEXT PHASE: first real end-to-end run with one test channel; then 9 (VPN, option
 - Gemini: REAL call verified via `gemini_check` workflow with GEMINI_API_KEY secret (model gemini-3.6-flash; auto-fallback if a model is retired/limited).
 - Tests: 86 pass on SQLite and real Postgres in CI.
 - Still unverified on real Google: OAuth, Drive, YouTube upload, Analytics. Dashboard (docs/) runs in demo mode until a backend exists.
+
+```text
+CHANGE: 2026-11-06 - English everywhere
+IMPLEMENTED: all user-facing text translated from Hinglish to English: PWA dashboard (docs/: labels, banners,
+  buttons, confirm dialogs, errors, demo data, privacy page, html lang=en, service-worker cache v2),
+  CLI/log/error messages (main.py, src/, scripts/), config validator, workflow messages, README, STATUS,
+  SETUP_HINDI.md -> SETUP.md. Gemini metadata language default -> English (Hindi/Hinglish still options;
+  per channel via channels.yaml defaults.language). Tests updated for the new message text.
+BEHAVIOUR: unchanged apart from the default metadata language.
+```
+
+```text
+PHASE: 9 - Surfshark WireGuard, separate outgoing IP per channel (optional) - MOCK-TESTED ONLY
+IMPLEMENTED:
+  migrations/005_channel_vpn_profile.sql: channels.vpn_profile TEXT NULL (profile NAME only, e.g. 'ch01').
+  CLI: python main.py channels vpn --channel UC.. --profile ch01 | --clear ; channels list shows vpn=.
+  src/vpn/wireguard.py: WireGuardTunnel (config from WG_CONF_<PROFILE> env/secret -> 0600 temp file in 0700 dir,
+    [sudo -n] wg-quick up, public IP must change (vpn.ip_check_url), wg-quick down, temp file always deleted;
+    only masked IPs logged, wg-quick output never logged), VpnGate (per-channel decision; required tunnel fails
+    -> VpnError + Telegram alert; optional -> runner IP).
+  src/scheduler/executor.py: upload phase wrapped in the channel's tunnel with fresh API connections; VPN
+    failure -> stopped=vpn, uploads skipped, jobs stay QUEUED, other channels continue; VPN channels never run in
+    parallel threads (tunnel is machine-wide); summary shows vpn=185.x.x.12.
+  scripts/run_uploads.py: VpnGate wired in; --channel runs one channel alone.
+  .github/workflows/upload.yml: plan job (scripts/actions_helper.py matrix: enabled+connected channels, IDs and
+    profile names only, 256-job cap with rotating window) -> upload matrix job per channel (fail-fast false,
+    max-parallel from input/vars.UPLOAD_MAX_PARALLEL/4, per-channel concurrency group, wireguard-tools +
+    openresolv when the channel has a profile, toJSON(secrets) only in the select-wg step which ::add-mask::s
+    the config and passes it via $GITHUB_ENV, final step deletes any leftover interface).
+  settings.example.yaml: vpn.enabled, vpn.require_for_channels_with_profile, vpn.ip_check_url (+ validator).
+  docs/: VPN view per channel (profile, masked IP, status) with demo data; API_CONTRACT /api/vpn updated.
+TESTS RUN: python -m pytest -q
+TEST RESULTS: 107 passed (88 + 19 new in tests/test_vpn.py), SQLite. wg-quick (subprocess) and the IP check
+  (HTTP) are mocked.
+NOT VERIFIED: real wg-quick on a GitHub-hosted runner (sudo, openresolv/DNS lines, IPv6 Address lines), real
+  Surfshark configs, api.ipify.org from inside the tunnel, YouTube upload through the tunnel, the matrix
+  workflow on GitHub (expressions for max-parallel / matrix include / job concurrency are standard but not run).
+KNOWN ISSUES / NOTES:
+  - The last VPN check result (masked IP, status) is not stored in the DB yet; the dashboard VPN view needs the
+    Phase 10 backend for real data (demo data only today).
+  - Parallel matrix jobs share one quota ledger; the pre-upload quota check is not a reservation, so two jobs
+    can both pass it near the daily limit (Google's quotaExceeded still pauses correctly).
+  - OAuth token refresh for the upload phase happens through the tunnel (fresh client after tunnel up).
+```
