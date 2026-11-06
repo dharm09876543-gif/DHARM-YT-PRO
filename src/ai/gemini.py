@@ -98,7 +98,7 @@ class GeminiMetadata:
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8}}
         r = self._post(body)
         self.tried.append((self.model, r.status_code))
-        if r.status_code in (404, 429):  # model retired, or no free quota on it -> try others
+        if r.status_code in (404, 429, 500, 503):  # model retired, or no free quota on it -> try others
             for alt in self._candidates():
                 if alt == self.model:
                     continue
