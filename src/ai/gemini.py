@@ -43,6 +43,22 @@ class GeminiMetadata:
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self.client = client or httpx.Client(timeout=60)
 
+    def _pick_model(self) -> str | None:
+        try:
+            r = self.client.get("https://generativelanguage.googleapis.com/v1beta/models",
+                                params={"pageSize": 200}, headers={"x-goog-api-key": self.key})
+            if r.status_code >= 400:
+                return None
+            names = [m["name"].removeprefix("models/") for m in r.json().get("models", [])
+                     if "generateContent" in m.get("supportedGenerationMethods", [])]
+        except Exception:
+            return None
+        def rank(n: str):
+            stable = not any(x in n for x in ("preview", "exp", "lite", "image", "tts", "live"))
+            return ("flash" in n, stable, n)
+        names.sort(key=rank, reverse=True)
+        return names[0] if names else None
+
     def generate(self, filename: str, channel: str = "", notes: str = "",
                  language: str = "Hindi", style: str = "friendly, energetic",
                  footer: str = "", extra_tags: list[str] | None = None) -> VideoMetadata:
@@ -53,6 +69,12 @@ class GeminiMetadata:
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8}}
         r = self.client.post(API.format(model=self.model), json=body,
                              headers={"x-goog-api-key": self.key})
+        if r.status_code == 404:  # model retired/renamed -> pick an available flash model
+            alt = self._pick_model()
+            if alt and alt != self.model:
+                self.model = alt
+                r = self.client.post(API.format(model=self.model), json=body,
+                                     headers={"x-goog-api-key": self.key})
         if r.status_code == 429:
             raise GeminiError("Gemini quota/rate limit - thodi der baad")
         if r.status_code >= 400:

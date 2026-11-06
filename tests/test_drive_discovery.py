@@ -51,7 +51,7 @@ def test_discover_inserts_with_metadata_priority(engine, channel, monkeypatch):
     assert rows["v1"].title == "Pehla Video" and rows["v1"].thumbnail_drive_id == "t1"
     assert rows["v1"].drive_file_version == "m1" and rows["v1"].upload_status == "DISCOVERED"
     assert rows["v1"].description == "Subscribe!"
-    assert rows["v2"].title == "Sidecar Title" and json.loads(rows["v2"].tags) == ["a", "b"]
+    assert rows["v2"].title == "Sidecar Title" and (rows["v2"].tags if isinstance(rows["v2"].tags, list) else json.loads(rows["v2"].tags)) == ["a", "b"]
     # dobara chalao: kuch naya nahi
     r2 = discover_channel(engine, channel, drv)
     assert (r2.inserted, r2.skipped) == (0, 2)

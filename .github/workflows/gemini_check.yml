@@ -23,7 +23,8 @@ jobs:
           if [ -z "$GEMINI_API_KEY" ]; then echo "GEMINI_API_KEY secret nahi mila"; exit 1; fi
           python - <<'EOF'
           from src.ai.gemini import GeminiMetadata
-          m = GeminiMetadata().generate("village_cooking_aloo_paratha.mp4", notes="desi khana recipe", language="Hinglish")
+          g = GeminiMetadata()
+          m = g.generate("village_cooking_aloo_paratha.mp4", notes="desi khana recipe", language="Hinglish")
           print("GEMINI OK - title length:", len(m.title), "tags:", len(m.tags))
-          print("Sample title:", m.title)
+          print("Model:", g.model); print("Sample title:", m.title)
           EOF
