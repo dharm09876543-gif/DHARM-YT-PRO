@@ -43,6 +43,34 @@ class GeminiMetadata:
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
         self.client = client or httpx.Client(timeout=60)
 
+    def _post(self, body: dict, model: str | None = None):
+        return self.client.post(API.format(model=model or self.model), json=body,
+                                headers={"x-goog-api-key": self.key})
+
+    @staticmethod
+    def _msg(r) -> str:
+        try:
+            return str(r.json().get("error", {}).get("message", ""))[:200]
+        except Exception:
+            return ""
+
+    def _candidates(self) -> list[str]:
+        try:
+            r = self.client.get("https://generativelanguage.googleapis.com/v1beta/models",
+                                params={"pageSize": 200}, headers={"x-goog-api-key": self.key})
+            if r.status_code >= 400:
+                return []
+            names = [m["name"].removeprefix("models/") for m in r.json().get("models", [])
+                     if "generateContent" in m.get("supportedGenerationMethods", [])]
+        except Exception:
+            return []
+        def rank(n: str):
+            stable = not any(x in n for x in ("preview", "exp", "image", "tts", "live", "embedding"))
+            return ("flash" in n, stable, "lite" not in n, n)
+        names = [n for n in names if "gemini" in n]
+        names.sort(key=rank, reverse=True)
+        return names[:8]
+
     def _pick_model(self) -> str | None:
         try:
             r = self.client.get("https://generativelanguage.googleapis.com/v1beta/models",
@@ -67,18 +95,19 @@ class GeminiMetadata:
                                categories=json.dumps(CATEGORIES))
         body = {"contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8}}
-        r = self.client.post(API.format(model=self.model), json=body,
-                             headers={"x-goog-api-key": self.key})
-        if r.status_code == 404:  # model retired/renamed -> pick an available flash model
-            alt = self._pick_model()
-            if alt and alt != self.model:
-                self.model = alt
-                r = self.client.post(API.format(model=self.model), json=body,
-                                     headers={"x-goog-api-key": self.key})
+        r = self._post(body)
+        if r.status_code in (404, 429):  # model retired, or no free quota on it -> try others
+            for alt in self._candidates():
+                if alt == self.model:
+                    continue
+                r2 = self._post(body, alt)
+                if r2.status_code < 400:
+                    self.model, r = alt, r2
+                    break
         if r.status_code == 429:
-            raise GeminiError("Gemini quota/rate limit - thodi der baad")
+            raise GeminiError(f"Gemini quota/rate limit - thodi der baad ({self._msg(r)})")
         if r.status_code >= 400:
-            raise GeminiError(f"Gemini error {r.status_code}")
+            raise GeminiError(f"Gemini error {r.status_code} ({self._msg(r)})")
         try:
             text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
             data = json.loads(text.strip().removeprefix("```json").removesuffix("```"))
