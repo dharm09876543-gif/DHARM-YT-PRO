@@ -1,0 +1,40 @@
+name: tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dharm
+          POSTGRES_PASSWORD: dharm
+          POSTGRES_DB: dharm_yt
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Validate config
+        run: python scripts/validate_config.py
+      - name: Unit tests (SQLite)
+        run: pytest -q --cov=src
+      - name: Migrations on real PostgreSQL
+        env:
+          DATABASE_URL: postgresql://dharm:dharm@localhost:5432/dharm_yt
+        run: |
+          python scripts/initialize_db.py
+          python scripts/initialize_db.py
+      - name: Secret scan (no credentials committed)
+        run: |
+          ! git grep -nE 'ya29\.|1//0|PrivateKey *= *[A-Za-z0-9+/]{20}|-----BEGIN (RSA )?PRIVATE KEY' -- . ':!tests/*' ':!src/utils/logging.py' ':!.github/*'

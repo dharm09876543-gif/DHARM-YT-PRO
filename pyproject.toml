@@ -1,0 +1,9 @@
+[project]
+name = "dharm-yt-pro"
+version = "0.1.0"
+description = "DHARM YT PRO - multi-channel YouTube automation platform"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

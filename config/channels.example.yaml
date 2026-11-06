@@ -1,0 +1,13 @@
+# Har channel ka ek block. channel_id OAuth connect karne ke baad milega.
+channels:
+  - key: "CHANNEL_001"
+    channel_name: "Mera Pehla Channel"
+    channel_id: ""                 # UCxxxxxxxx (connect ke baad bharein)
+    drive_folder_id: "PASTE_DRIVE_FOLDER_ID"
+    timezone: "Asia/Kolkata"
+    enabled: true
+    defaults:
+      privacy: "private"
+      category_id: "22"
+      tags: ["YouTube", "Video"]
+      description_footer: "Subscribe karein!"

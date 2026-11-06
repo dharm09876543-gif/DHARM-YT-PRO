@@ -1,0 +1,29 @@
+# secrets - kabhi commit na karein
+.env
+*.env
+!.env.example
+client_secret*.json
+token*.json
+credentials*.json
+*.conf
+wg*.conf
+config/settings.yaml
+config/channels.yaml
+config/schedules.yaml
+# data / runtime
+data/*
+!data/.gitkeep
+*.db
+*.sqlite
+*.mp4
+*.mov
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+*.egg-info/
