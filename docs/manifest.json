@@ -1,0 +1,18 @@
+{
+  "name": "DHARM YT PRO · Command Center",
+  "short_name": "DHARM YT",
+  "description": "Multi-channel YouTube upload dashboard (Drive → YouTube).",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07090e",
+  "theme_color": "#07090e",
+  "lang": "hi-Latn",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

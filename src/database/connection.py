@@ -18,7 +18,13 @@ def get_engine(url: str | None = None) -> Engine:
         url = url.replace("postgresql://", "postgresql+psycopg://", 1)
     eng = create_engine(url, future=True, pool_pre_ping=True)
     if eng.dialect.name == "sqlite":
+        import sqlite3
+        from datetime import date, datetime
+
         from sqlalchemy import event
+        # Python 3.12 default adapter deprecated: ISO format khud set (string compare bhi sahi rehta hai)
+        sqlite3.register_adapter(datetime, lambda d: d.isoformat(" "))
+        sqlite3.register_adapter(date, lambda d: d.isoformat())
 
         @event.listens_for(eng, "connect")
         def _fk(dbapi_conn, _):

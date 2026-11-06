@@ -2,6 +2,8 @@ scheduler:
   enabled: true
   timezone: "Asia/Kolkata"
   slots: ["09:00", "13:00", "17:00", "21:00"]
+  lead_minutes: 60               # slot kam se kam itne minute baad ka ho
+  days_ahead: 30                 # kitne din aage tak slot dhoondhein
   # channel-specific override
   overrides:
     CHANNEL_001:

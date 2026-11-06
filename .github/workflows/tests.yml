@@ -29,6 +29,10 @@ jobs:
         run: python scripts/validate_config.py
       - name: Unit tests (SQLite)
         run: pytest -q --cov=src
+      - name: Unit tests on real PostgreSQL (SQL compatibility)
+        env:
+          TEST_DATABASE_URL: postgresql://dharm:dharm@localhost:5432/dharm_yt
+        run: pytest -q --ignore=tests/test_database.py
       - name: Migrations on real PostgreSQL
         env:
           DATABASE_URL: postgresql://dharm:dharm@localhost:5432/dharm_yt

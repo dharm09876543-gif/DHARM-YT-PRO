@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="hi-Latn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07090e">
+  <meta name="color-scheme" content="dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="DHARM YT PRO - multi-channel YouTube upload command center">
+  <title>DHARM YT PRO · Command Center</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Content par jaayein</a>
+
+  <div class="layout">
+    <aside class="sidenav" aria-label="Main navigation">
+      <div class="brand">
+        <img src="icons/icon-192.png" alt="" width="36" height="36">
+        <div>
+          <strong>DHARM YT PRO</strong>
+          <span>Command Center</span>
+        </div>
+      </div>
+      <nav id="side-nav" class="side-links"></nav>
+      <p class="side-foot"><a href="privacy.html">Privacy</a></p>
+    </aside>
+
+    <div class="content">
+      <header class="topbar">
+        <div class="topbar-title">
+          <img class="topbar-logo" src="icons/icon-192.png" alt="" width="28" height="28">
+          <h1 id="page-title">Overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <span id="conn-pill" class="pill pill-muted" role="status">—</span>
+          <button id="refresh-btn" class="btn btn-ghost btn-icon" type="button" aria-label="Refresh karein" title="Refresh">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="demo-banner" class="demo-banner" role="status" hidden>
+        <strong>Demo mode — sample data.</strong>
+        <span>Yeh asli data nahi hai. Asli data ke liye Settings mein backend URL daalein aur login karein.</span>
+        <a href="#settings" class="btn btn-sm btn-gold">Settings kholo</a>
+      </div>
+
+      <main id="main" tabindex="-1" aria-live="polite"></main>
+    </div>
+  </div>
+
+  <nav id="bottom-nav" class="bottomnav" aria-label="Mobile navigation"></nav>
+
+  <div id="more-sheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-close="sheet"></div>
+    <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="more-title">
+      <div class="sheet-head">
+        <h2 id="more-title">Saare sections</h2>
+        <button class="btn btn-ghost btn-icon" type="button" data-close="sheet" aria-label="Band karein">✕</button>
+      </div>
+      <div id="more-links" class="sheet-grid"></div>
+    </div>
+  </div>
+
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <h2 id="confirm-title">Pakka?</h2>
+      <p id="confirm-text"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-ghost" value="cancel" type="submit">Nahi, ruko</button>
+        <button class="btn btn-danger" value="ok" type="submit" id="confirm-ok">Haan, karo</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+  <noscript><p class="noscript">Is dashboard ke liye JavaScript on karein.</p></noscript>
+
+  <script src="js/components/ui.js"></script>
+  <script src="js/demo-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/components/overview.js"></script>
+  <script src="js/components/channels.js"></script>
+  <script src="js/components/queue.js"></script>
+  <script src="js/components/drive.js"></script>
+  <script src="js/components/metadata.js"></script>
+  <script src="js/components/scheduler.js"></script>
+  <script src="js/components/analytics.js"></script>
+  <script src="js/components/quota.js"></script>
+  <script src="js/components/health.js"></script>
+  <script src="js/components/leaderboard.js"></script>
+  <script src="js/components/vpn.js"></script>
+  <script src="js/components/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

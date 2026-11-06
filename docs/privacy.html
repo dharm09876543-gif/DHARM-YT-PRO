@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="hi-Latn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07090e">
+  <meta name="referrer" content="no-referrer">
+  <title>Privacy Policy · DHARM YT PRO</title>
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="doc-page">
+  <main class="doc">
+    <p><a href="index.html" class="btn btn-ghost btn-sm">← Dashboard par wapas</a></p>
+    <h1>Privacy Policy</h1>
+    <p class="muted">DHARM YT PRO · Last updated: November 2026</p>
+
+    <h2>Yeh app kya karta hai</h2>
+    <p>DHARM YT PRO ek private tool hai jo channel owner ki permission (Google OAuth) se Google Drive se videos lekar unke apne YouTube channels par upload, schedule aur analytics dikhata hai. Yeh public service nahi hai.</p>
+
+    <h2>Kaunsa data use hota hai</h2>
+    <ul>
+      <li><strong>YouTube Data API v3:</strong> video upload, title/description/tags set karna, channel info.</li>
+      <li><strong>YouTube Analytics API:</strong> views, watch time, subscribers jaise aggregate numbers.</li>
+      <li><strong>Google Drive API:</strong> sirf configured folders se video files padhna, aur verified upload ke baad file ko Trash mein bhejna (permanent delete kabhi nahi).</li>
+      <li><strong>Gemini API:</strong> title/description/tags ke suggestions. Sirf aapke diye notes/file name bheje jaate hain.</li>
+    </ul>
+
+    <h2>Data kahan rehta hai</h2>
+    <ul>
+      <li>OAuth tokens encrypted (Fernet) form mein sirf owner ke apne backend database mein rehte hain.</li>
+      <li>Yeh dashboard (GitHub Pages) ek static website hai. Isme koi secret, token ya private data nahi hota.</li>
+      <li>Dashboard aapke browser mein sirf do cheezein save karta hai: backend URL (localStorage) aur login session token (sessionStorage — tab band karte hi hat jaata hai).</li>
+      <li>Service worker sirf app ki files (HTML/CSS/JS/icons) cache karta hai; API responses kabhi cache nahi hote.</li>
+    </ul>
+
+    <h2>Sharing</h2>
+    <p>Data kisi third party ko becha ya share nahi kiya jaata. Google APIs ka use <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener noreferrer">Google API Services User Data Policy</a> ke Limited Use rules ke hisaab se hota hai.</p>
+
+    <h2>Permission wapas lena</h2>
+    <p>Aap kabhi bhi <a href="https://myaccount.google.com/permissions" rel="noopener noreferrer">Google Account → Third-party access</a> se is app ki permission hata sakte hain. Owner se kehkar apna channel aur uske encrypted tokens backend se delete bhi karwa sakte hain.</p>
+
+    <h2>Contact</h2>
+    <p>Sawal ho to repository ke GitHub Issues mein likhein.</p>
+  </main>
+</body>
+</html>

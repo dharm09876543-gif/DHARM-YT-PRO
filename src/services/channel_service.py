@@ -94,6 +94,27 @@ class ChannelService:
                               encrypted_access_token, token_expiry, scopes, status)
                               VALUES (:c,:rt,:at,:e,:s,'active')"""), params)
 
+    def update_access_token(self, channel_id: str, access_token: str | None,
+                            expiry: datetime | None = None) -> None:
+        """Refresh ke baad naya access token (encrypted) save; refresh token waisa hi rehta hai."""
+        if not self.cipher:
+            raise ChannelError("encryption key chahiye")
+        with self.db.begin() as c:
+            c.execute(text("""UPDATE oauth_credentials SET encrypted_access_token=:at, token_expiry=:e,
+                              updated_at=CURRENT_TIMESTAMP WHERE channel_id=:c"""),
+                      {"at": self.cipher.encrypt(access_token) if access_token else None,
+                       "e": expiry, "c": channel_id})
+
+    def update_profile(self, channel_id: str, name: str | None = None,
+                       thumbnail_url: str | None = None) -> None:
+        fields = {k: v for k, v in {"channel_name": name, "thumbnail_url": thumbnail_url}.items() if v}
+        if fields:
+            self._update(channel_id, **fields)
+
+    def exists(self, channel_id: str) -> bool:
+        with self.db.connect() as c:
+            return c.execute(text("SELECT 1 FROM channels WHERE channel_id=:c"), {"c": channel_id}).first() is not None
+
     def refresh_token(self, channel_id: str) -> str:
         with self.db.connect() as c:
             r = c.execute(text("SELECT encrypted_refresh_token, status FROM oauth_credentials WHERE channel_id=:c"),

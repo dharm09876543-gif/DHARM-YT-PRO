@@ -7,16 +7,27 @@ uploads:
   default_category_id: "22"       # 22 = People & Blogs
   max_concurrent_uploads: 2       # 1-5
   max_retries: 5
+  max_per_channel_per_run: 2      # ek run mein ek channel ke max uploads
+  chunk_size_mb: 8                # resumable upload chunk (256KB ka multiple)
+  stale_lock_minutes: 90          # itni der purana lock "atka hua" maana jaayega
+  retry_wait_minutes: 30          # fail ke baad dobara koshish
 
 quota:
   daily_limit_units: 10000        # Google Cloud Console se asli value dekhein
   warning_threshold_units: 8000
   upload_cost_units: 1600         # andaza; Console se verify karein
+  costs:                          # har operation ke units (Console se verify karein)
+    videos.insert: 1600
+    thumbnails.set: 50
+    videos.list: 1
+    channels.list: 1
+    playlistItems.list: 1
 
 drive:
   root_folder_name: "DHARM_YT_PRO"
   cleanup_mode: "trash"           # sirf trash, permanent delete kabhi nahi
   cleanup_after_verification: true
+  cleanup_require_thumbnail: true # thumbnail set na ho to video trash nahi hogi
 
 network:
   vpn_enabled: false
