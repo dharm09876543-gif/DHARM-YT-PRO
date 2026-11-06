@@ -90,3 +90,8 @@ KNOWN ISSUES / NOTES:
   - Failed thumbnails block Drive cleanup (cleanup_require_thumbnail); no automatic thumbnail retry yet.
 NEXT PHASE: first real end-to-end run with one test channel; then 9 (VPN, optional), 10 (FastAPI + PWA)
 ```
+
+## 2026-11-06 real checks
+- Gemini: REAL call verified via `gemini_check` workflow with GEMINI_API_KEY secret (model gemini-3.6-flash; auto-fallback if a model is retired/limited).
+- Tests: 86 pass on SQLite and real Postgres in CI.
+- Still unverified on real Google: OAuth, Drive, YouTube upload, Analytics. Dashboard (docs/) runs in demo mode until a backend exists.

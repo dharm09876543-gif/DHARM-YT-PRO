@@ -1,6 +1,6 @@
 """Gemini AI se YouTube title, description, tags banana.
 
-Key: GEMINI_API_KEY env / GitHub Secret. Model: GEMINI_MODEL (default gemini-2.5-flash).
+Key: GEMINI_API_KEY env / GitHub Secret. Model: GEMINI_MODEL (default gemini-3.6-flash).
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ class GeminiMetadata:
         self.key = api_key or os.getenv("GEMINI_API_KEY", "")
         if not self.key:
             raise GeminiError("GEMINI_API_KEY set nahi hai")
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
         self.client = client or httpx.Client(timeout=90)
         self.tried: list[tuple[str, int]] = []
 
