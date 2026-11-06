@@ -23,6 +23,10 @@ Google Cloud setup step-by-step: **[SETUP_HINDI.md](SETUP_HINDI.md)**
 | `python main.py validate` | Config files ki galtiyan dikhata hai |
 | `python main.py init-db` | Database tables banata hai (dobara chalana safe) |
 | `python main.py keygen` | Encryption keys banata hai |
+| `python main.py channels list` | Saare channels, auth status, uploaded/queue/failed |
+| `python main.py channels add UC... "Naam" FOLDER_ID` | Naya channel jodo |
+| `python main.py channels enable/disable/rename/folder/health/remove` | Channel manage karo |
+| `python main.py ai video.mp4 --notes "topic"` | Gemini se title, description, tags |
 | `pytest` | Saare tests |
 
 ## Roadmap
@@ -33,8 +37,8 @@ Google Cloud setup step-by-step: **[SETUP_HINDI.md](SETUP_HINDI.md)**
 | 3 | Google Drive integration | ⏳ |
 | 4 | YouTube OAuth (per channel) | ⏳ |
 | 5 | Upload engine (resumable, duplicate guard) | ⏳ |
-| 6 | Metadata, thumbnails + **Gemini AI titles/descriptions/tags** | ⏳ |
-| 7 | Multi-channel manager (100+) | ⏳ |
+| 6 | Metadata, thumbnails + **Gemini AI titles/descriptions/tags** | 🟡 Metadata validator + Gemini generator done (mock-tested); thumbnails pending |
+| 7 | Multi-channel manager (100+) | 🟡 Channel service + CLI done (tested); OAuth connect flow in Phase 4 |
 | 8 | Quota + scheduling | ⏳ |
 | 9 | Surfshark WireGuard (optional) | ⏳ |
 | 10 | FastAPI backend + mobile PWA dashboard | ⏳ |

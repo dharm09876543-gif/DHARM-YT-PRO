@@ -24,3 +24,17 @@ REMAINING: SQLAlchemy models/repositories, Alembic, backup/restore test, Postgre
 ```
 
 RAJ FB PRO: not touched, not referenced, no shared secrets.
+
+```text
+PHASE: 6 + 7 (early) - Gemini AI metadata + Channel Manager
+IMPLEMENTED: src/upload/metadata.py (YouTube limits: title 100, desc 5000 bytes, tags 500,
+  categories, schedule forces private), src/ai/gemini.py (Gemini REST, JSON output,
+  Hindi/English/Hinglish, footer + extra tags, key via header only),
+  src/services/channel_service.py (add/list/enable/disable/rename/folder/timezone,
+  encrypted tokens, auth status, safe remove, health), CLI: main.py channels / main.py ai
+TESTS RUN: pytest (27 tests)
+TEST RESULTS: 27 passed (Gemini tested with mocked HTTP; not yet with a real key)
+KNOWN ISSUES: real Gemini call unverified until GEMINI_API_KEY is set; OAuth connect
+  (Phase 4) needed before channels show auth=active
+NEXT PHASE: 2 finish, 3 Google Drive, 4 OAuth
+```
