@@ -41,7 +41,8 @@ class GeminiMetadata:
         if not self.key:
             raise GeminiError("GEMINI_API_KEY set nahi hai")
         self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        self.client = client or httpx.Client(timeout=60)
+        self.client = client or httpx.Client(timeout=90)
+        self.tried: list[tuple[str, int]] = []
 
     def _post(self, body: dict, model: str | None = None):
         return self.client.post(API.format(model=model or self.model), json=body,
@@ -96,11 +97,16 @@ class GeminiMetadata:
         body = {"contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8}}
         r = self._post(body)
+        self.tried.append((self.model, r.status_code))
         if r.status_code in (404, 429):  # model retired, or no free quota on it -> try others
             for alt in self._candidates():
                 if alt == self.model:
                     continue
-                r2 = self._post(body, alt)
+                try:
+                    r2 = self._post(body, alt)
+                except httpx.HTTPError:
+                    continue
+                self.tried.append((alt, r2.status_code))
                 if r2.status_code < 400:
                     self.model, r = alt, r2
                     break

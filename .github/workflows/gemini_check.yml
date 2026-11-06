@@ -24,7 +24,13 @@ jobs:
           python - <<'EOF'
           from src.ai.gemini import GeminiMetadata
           g = GeminiMetadata()
-          m = g.generate("village_cooking_aloo_paratha.mp4", notes="desi khana recipe", language="Hinglish")
+          try:
+              m = g.generate("village_cooking_aloo_paratha.mp4", notes="desi khana recipe", language="Hinglish")
+          except Exception as e:
+              print("TRIED:", g.tried)
+              print("FAIL:", type(e).__name__, e)
+              raise SystemExit(1)
+          print("TRIED:", g.tried)
           print("GEMINI OK - title length:", len(m.title), "tags:", len(m.tags))
           print("Model:", g.model); print("Sample title:", m.title)
           EOF
