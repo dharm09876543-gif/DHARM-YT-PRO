@@ -1,0 +1,29 @@
+name: gemini_check
+# Manual: checks GEMINI_API_KEY secret works with one tiny real call. Prints only OK/fail, never the key.
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/gemini_check.yml"]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r requirements.txt
+      - name: Gemini real call
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then echo "GEMINI_API_KEY secret nahi mila"; exit 1; fi
+          python - <<'EOF'
+          from src.ai.gemini import GeminiMetadata
+          m = GeminiMetadata().generate("village_cooking_aloo_paratha.mp4", notes="desi khana recipe", language="Hinglish")
+          print("GEMINI OK - title length:", len(m.title), "tags:", len(m.tags))
+          print("Sample title:", m.title)
+          EOF
