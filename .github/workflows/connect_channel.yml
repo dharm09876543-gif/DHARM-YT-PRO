@@ -1,0 +1,45 @@
+name: Connect channel
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Full address from the browser after pressing Allow (starts with http://localhost/?...)"
+        required: true
+      folder:
+        description: "Drive folder link or ID with this channel's videos"
+        required: true
+      channel:
+        description: "Optional: UC... id to reconnect an existing channel"
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: dharm-yt-connect
+  cancel-in-progress: false
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      CONNECT_URL: ${{ inputs.url }}
+      CONNECT_FOLDER: ${{ inputs.folder }}
+      CONNECT_CHANNEL: ${{ inputs.channel }}
+      APP_ENV: production
+    steps:
+      - name: Secrets check
+        run: |
+          for n in DATABASE_URL TOKEN_ENCRYPTION_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
+            if [ -z "${!n}" ]; then echo "::error title=$n missing::Add the $n secret under Settings > Secrets and variables > Actions."; exit 1; fi
+          done
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Connect
+        run: python main.py connect-url
