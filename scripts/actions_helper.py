@@ -5,7 +5,7 @@
       Needs DATABASE_URL. No channel names, no secrets in the output.
 
   python scripts/actions_helper.py select-wg --profile ch01
-      Reads SECRETS_JSON (= toJSON(secrets)), masks WG_CONF_CH01 with ::add-mask:: and appends it to
+      Reads WG_CONF_VALUE (= secrets[matrix.wg_secret]), masks WG_CONF_CH01 with ::add-mask:: and appends it to
       $GITHUB_ENV for the next steps. Never prints the config. Exit 0 also when it is missing (the run
       itself then skips that channel's uploads and alerts).
 """
@@ -45,7 +45,11 @@ if a.cmd == "matrix":
     else:
         print(out)
 else:
-    var, value = select_wg_secret(os.environ.get("SECRETS_JSON", ""), a.profile)
+    if os.environ.get("WG_CONF_VALUE") is not None:
+        from src.vpn.wireguard import env_var_for
+        var, value = env_var_for(a.profile), os.environ.get("WG_CONF_VALUE") or None
+    else:
+        var, value = select_wg_secret(os.environ.get("SECRETS_JSON", ""), a.profile)
     if not value:
         print(f"::warning title=VPN secret missing::{var} is not set; uploads for this channel will be skipped.")
         sys.exit(0)

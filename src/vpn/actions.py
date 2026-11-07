@@ -26,7 +26,9 @@ def build_matrix(channels: list[dict], max_jobs: int = GITHUB_MATRIX_MAX, offset
     if total > max_jobs:
         start = (int(offset) * max_jobs) % total
         ok = (ok[start:] + ok[:start])[:max_jobs]
-    return [{"channel_id": c["channel_id"], "vpn_profile": c.get("vpn_profile") or ""} for c in ok], total
+    from src.vpn.wireguard import env_var_for
+    return [{"channel_id": c["channel_id"], "vpn_profile": c.get("vpn_profile") or "",
+             "wg_secret": env_var_for(c["vpn_profile"]) if c.get("vpn_profile") else ""} for c in ok], total
 
 
 def mask_commands(value: str) -> list[str]:

@@ -267,7 +267,7 @@ def test_build_matrix_filters_caps_and_rotates():
     chans.append({"channel_id": "UCrev", "enabled": True, "auth_status": "revoked"})
     inc, total = build_matrix(chans)
     assert total == 300 and len(inc) == 256
-    assert set(inc[0]) == {"channel_id", "vpn_profile"} and inc[0]["vpn_profile"] == ""
+    assert set(inc[0]) == {"channel_id", "vpn_profile", "wg_secret"} and inc[0]["vpn_profile"] == ""
     inc2, _ = build_matrix(chans, offset=1)
     assert {c["channel_id"] for c in inc} | {c["channel_id"] for c in inc2} == {c["channel_id"] for c in chans[:300]}
     assert build_matrix(chans, max_jobs=1000)[0].__len__() == 256       # GitHub hard limit
@@ -314,8 +314,8 @@ def test_upload_workflow_matrix_shape():
     assert "matrix.channel_id" in up["concurrency"]["group"] and up["concurrency"]["cancel-in-progress"] is False
     steps = {s.get("name", ""): s for s in up["steps"]}
     assert "wireguard-tools" in steps["Install WireGuard tools"]["run"]
-    sel = [s for s in up["steps"] if "toJSON(secrets)" in json.dumps(s)]
-    assert len(sel) == 1 and "select-wg" in sel[0]["run"]           # all-secrets JSON only in that one step
+    sel = [s for s in up["steps"] if "secrets[matrix.wg_secret]" in json.dumps(s)]
+    assert len(sel) == 1 and "select-wg" in sel[0]["run"]           # only this channel's WG secret, one step
     assert "toJSON(secrets)" not in json.dumps(up.get("env", {}))
     assert 'run --channel "${{ matrix.channel_id }}"' in raw
     assert "echo $WG_CONF" not in raw and "echo \"$WG_CONF" not in raw and "SECRETS_JSON\n" not in raw
@@ -329,3 +329,19 @@ def test_settings_vpn_block_and_validation():
     bad = {**load_yaml("settings"), "vpn": {"enabled": "yes", "ip_check_url": "http://x"}}
     errs = " ".join(validate_settings(bad))
     assert "vpn.enabled" in errs and "ip_check_url" in errs
+
+
+def test_workflows_never_dump_all_secrets():
+    from pathlib import Path
+    for wf in Path(".github/workflows").glob("*.yml"):
+        assert "toJSON(secrets)" not in wf.read_text(encoding="utf-8"), wf.name
+
+
+def test_select_wg_from_single_secret_env(tmp_path):
+    envf = tmp_path / "env"
+    env = {**os.environ, "WG_CONF_VALUE": CONF, "GITHUB_ENV": str(envf)}
+    env.pop("SECRETS_JSON", None)
+    out = subprocess.run([sys.executable, "scripts/actions_helper.py", "select-wg", "--profile", "ch01"],
+                         capture_output=True, text=True, env=env)
+    assert out.returncode == 0 and "loaded for this job (masked)" in out.stdout
+    assert envf.read_text().startswith("WG_CONF_CH01<<")

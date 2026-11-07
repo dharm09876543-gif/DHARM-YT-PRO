@@ -91,8 +91,9 @@ jobs:
       - name: Load this channel's WireGuard config (masked, never echoed)
         if: matrix.vpn_profile != ''
         env:
-          # All secrets as JSON, only for this step; the helper picks WG_CONF_<PROFILE> and masks it.
-          SECRETS_JSON: ${{ toJSON(secrets) }}
+          # Only this channel's WG_CONF_<PROFILE> secret (dumping every secret makes GitHub hold the run
+          # as action_required, so it must never be used).
+          WG_CONF_VALUE: ${{ secrets[matrix.wg_secret] }}
         run: python scripts/actions_helper.py select-wg --profile "${{ matrix.vpn_profile }}"
       - name: Upload videos (${{ matrix.channel_id }})
         run: python main.py run --channel "${{ matrix.channel_id }}"
