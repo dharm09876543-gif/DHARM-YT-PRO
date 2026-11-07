@@ -45,5 +45,5 @@ alerts:
 ai:
   video_metadata: true            # Gemini watches the downloaded video and writes title/description/hashtags
   video_max_mb: 1500              # bigger files keep the metadata from discovery
-  trends_region: "IN"             # YouTube "trending now" list given to Gemini (1 quota unit per run)
+  trends_region: "US"             # YouTube "trending now" list given to Gemini (1 quota unit per run); audience is USA
   trends_count: 15
