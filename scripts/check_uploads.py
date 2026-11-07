@@ -23,7 +23,7 @@ for ch in ChannelService(eng, cipher).list():
     print("   Token belongs to channel(s):", ", ".join(i["id"] for i in me) or "NONE")
     with eng.connect() as c:
         rows = [dict(r._mapping) for r in c.execute(text(
-            "SELECT id, youtube_video_id, upload_status FROM videos WHERE channel_id=:c AND youtube_video_id IS NOT NULL ORDER BY id"),
+            "SELECT id, youtube_video_id, upload_status, metadata_source, (SELECT event_status || ' ' || COALESCE(message,'') FROM upload_history h WHERE h.video_id=videos.id AND h.event_type='ai_video' ORDER BY h.id DESC LIMIT 1) AS ai FROM videos WHERE channel_id=:c AND youtube_video_id IS NOT NULL ORDER BY id"),
             {"c": ch["channel_id"]})]
     print(f"   Videos with a YouTube ID in DB: {len(rows)}")
     ids = [r["youtube_video_id"] for r in rows]
@@ -41,4 +41,5 @@ for ch in ChannelService(eng, cipher).list():
               f"privacy={st.get('privacyStatus')} upload={st.get('uploadStatus')} "
               f"reject={st.get('rejectionReason', '-')} fail={st.get('failureReason', '-')} "
               f"processing={(it.get('processingDetails') or {}).get('processingStatus', '-')} "
-              f"publishAt={st.get('publishAt', '-')}")
+              f"publishAt={st.get('publishAt', '-')} meta={r.get('metadata_source') or '-'} ai={(r.get('ai') or '-')[:160]} "
+              f"title_len={len(sn.get('title', ''))} hashtags={sn.get('description', '').count('#')}")
