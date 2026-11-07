@@ -99,7 +99,7 @@ def _ai_from_video(ctx: UploadContext, v: dict, path: Path) -> dict:
         return v
     try:
         trends: list[str] = []
-        region = str(ai.get("trends_region", "IN"))
+        region = str(ai.get("trends_region", "US"))
         try:
             if hasattr(ctx.yt, "trending"):
                 trends = ctx.yt.trending(region, int(ai.get("trends_count", 15)))

@@ -4,11 +4,12 @@
  */
 'use strict';
 
-const CACHE = 'dharm-yt-shell-v3';
+const CACHE = 'dharm-yt-shell-v4';
 const SHELL = [
   './',
   './index.html',
   './privacy.html',
+  './terms.html',
   './manifest.json',
   './css/dashboard.css',
   './js/app.js',
