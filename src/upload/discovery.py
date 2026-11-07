@@ -12,6 +12,7 @@ from pathlib import PurePath
 from sqlalchemy.engine import Engine
 
 from src.clients.drive_client import DriveClient
+from src.upload.state import update_fields
 from src.upload.duplicate_guard import file_version, find_existing, insert_if_new
 from src.upload.metadata import VideoMetadata
 from src.utils.logging import get_logger
@@ -57,10 +58,13 @@ def title_from_filename(name: str) -> str:
 def build_metadata(drive: DriveClient, f: dict, folders: list[str], channel: dict,
                    defaults: dict, gemini=None) -> VideoMetadata:
     meta: dict = {}
+    source = "filename"
     side = drive.find_sidecar(folders, f["name"])
     if side:
         try:
             meta = parse_sidecar(side["name"], drive.read_bytes(side["id"]))
+            if meta.get("title"):
+                source = "sidecar"
         except Exception as e:  # noqa: BLE001
             log.warning("Could not read sidecar (%s): %s", side["name"], e)
     if not meta.get("title"):
@@ -76,6 +80,7 @@ def build_metadata(drive: DriveClient, f: dict, folders: list[str], channel: dic
                                 extra_tags=defaults.get("tags"))
                 meta = {"title": g.title, "description": g.description, "tags": g.tags,
                         "category_id": g.category_id}
+                source = "gemini_name"
             except Exception as e:  # noqa: BLE001
                 log.warning("Gemini failed, using the filename as title: %s", e)
     if not meta.get("title"):
@@ -86,7 +91,9 @@ def build_metadata(drive: DriveClient, f: dict, folders: list[str], channel: dic
                        tags=list(meta.get("tags") or []),
                        category_id=str(meta.get("category_id") or defaults.get("category_id", "22")),
                        privacy_status=meta.get("privacy") or defaults.get("privacy", "private"))
-    return vm.clean()
+    vm = vm.clean()
+    vm.source = source
+    return vm
 
 
 def discover_channel(engine: Engine, channel: dict, drive: DriveClient,
@@ -114,6 +121,7 @@ def discover_channel(engine: Engine, channel: dict, drive: DriveClient,
                 "tags": meta.tags, "category_id": meta.category_id, "privacy_status": meta.privacy_status,
                 "thumbnail_drive_id": thumb["id"] if thumb else None})
             if vid:
+                update_fields(engine, vid, metadata_source=getattr(meta, "source", "filename"))
                 res.inserted += 1
             else:
                 res.skipped += 1

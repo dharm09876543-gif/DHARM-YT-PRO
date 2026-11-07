@@ -15,6 +15,22 @@ class YouTubeClient:
         if self.quota:
             self.quota.record(op)
 
+    def trending(self, region: str = "IN", count: int = 15) -> list[str]:
+        """Titles + top tags of what is trending now (1 quota unit). Cached per client."""
+        key = (region, count)
+        cache = self.__dict__.setdefault("_trend_cache", {})
+        if key not in cache:
+            resp = self.svc.videos().list(part="snippet", chart="mostPopular", regionCode=region,
+                                          maxResults=max(1, min(50, count))).execute()
+            self._rec("videos.list")
+            out = []
+            for it in resp.get("items", []):
+                sn = it.get("snippet", {})
+                tags = ", ".join((sn.get("tags") or [])[:5])
+                out.append(sn.get("title", "") + (f"  [tags: {tags}]" if tags else ""))
+            cache[key] = out
+        return cache[key]
+
     def insert_request(self, body: dict, media):
         """Resumable videos.insert request (not executed; the uploader drives next_chunk)."""
         return self.svc.videos().insert(part="snippet,status", body=body, media_body=media,

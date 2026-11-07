@@ -44,6 +44,7 @@ class UploadContext:
     tmp_dir: Path = Path("data/tmp")
     media_factory: object = None
     thumb_media_cls: object = None
+    gemini: object = None          # GeminiMetadata; None = created on demand when GEMINI_API_KEY is set
     sleep: object = None
 
     def uploader(self) -> ResumableUploader:
@@ -84,12 +85,54 @@ def _download(ctx: UploadContext, v: dict) -> Path:
     return ctx.drive.download_to(v["drive_file_id"], path, expected_md5=v.get("drive_md5"))
 
 
+def _ai_from_video(ctx: UploadContext, v: dict, path: Path) -> dict:
+    """Gemini watches the real video and rewrites title/description/tags in the video's own language.
+    Never for creator sidecar metadata. Any failure keeps the discovery metadata (upload never blocks)."""
+    import os
+    ai = ctx.settings.get("ai", {}) or {}
+    if not ai.get("video_metadata", True) or v.get("metadata_source") in ("sidecar", "gemini_video"):
+        return v
+    if not (ctx.gemini or os.getenv("GEMINI_API_KEY")):
+        return v
+    if path.stat().st_size > int(ai.get("video_max_mb", 1500)) * 1024 * 1024:
+        log_event(ctx.engine, v["id"], "ai_video", "skipped", "file too big for Gemini")
+        return v
+    try:
+        trends: list[str] = []
+        region = str(ai.get("trends_region", "IN"))
+        try:
+            if hasattr(ctx.yt, "trending"):
+                trends = ctx.yt.trending(region, int(ai.get("trends_count", 15)))
+        except Exception as e:  # noqa: BLE001
+            log.warning("Trending list unavailable: %s", type(e).__name__)
+        if ctx.gemini is None:
+            from src.ai.gemini import GeminiMetadata
+            ctx.gemini = GeminiMetadata()
+        with ctx.engine.connect() as c:
+            row = c.execute(text("SELECT channel_name FROM channels WHERE channel_id=:c"),
+                            {"c": v["channel_id"]}).first()
+        m = ctx.gemini.generate_from_video(path, v.get("mime_type"), channel=row[0] if row else "",
+                                           filename=v.get("filename", ""), trends=trends, region=region)
+        update_fields(ctx.engine, v["id"], title=m.title, description=m.description,
+                      tags=json.dumps(m.tags, ensure_ascii=False), category_id=m.category_id,
+                      metadata_source="gemini_video")
+        log_event(ctx.engine, v["id"], "ai_video", "ok",
+                  f"language={getattr(m, 'detected_language', '')} model={ctx.gemini.model}")
+        return load_video(ctx.engine, v["id"])
+    except Exception as e:  # noqa: BLE001
+        log.warning("Gemini video metadata failed, keeping the old title: %s", e)
+        log_event(ctx.engine, v["id"], "ai_video", "failed", str(e)[:300])
+        return v
+
+
 def _upload_stage(ctx: UploadContext, v: dict) -> str:
     ctx.quota.check_upload(with_thumbnail=bool(v.get("thumbnail_drive_id")))
-    body = youtube_body(v)
+    youtube_body(v)   # fail fast on bad metadata before downloading
     transition(ctx.engine, v["id"], "DOWNLOADING")
     path = _download(ctx, v)
     try:
+        v = _ai_from_video(ctx, v, path)
+        body = youtube_body(v)
         transition(ctx.engine, v["id"], "READY")
         transition(ctx.engine, v["id"], "UPLOADING")
         up = ctx.uploader()

@@ -41,3 +41,9 @@ vpn:
 
 alerts:
   telegram_enabled: false
+
+ai:
+  video_metadata: true            # Gemini watches the downloaded video and writes title/description/hashtags
+  video_max_mb: 1500              # bigger files keep the metadata from discovery
+  trends_region: "IN"             # YouTube "trending now" list given to Gemini (1 quota unit per run)
+  trends_count: 15
