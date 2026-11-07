@@ -324,7 +324,7 @@ def test_upload_workflow_matrix_shape():
 def test_settings_vpn_block_and_validation():
     from src.config import load_yaml, validate_settings
     s = yaml.safe_load((ROOT / "config" / "settings.example.yaml").read_text())
-    assert s["vpn"]["enabled"] is False and s["vpn"]["require_for_channels_with_profile"] is True
+    assert s["vpn"]["enabled"] is True and s["vpn"]["require_for_channels_with_profile"] is True
     assert s["vpn"]["ip_check_url"].startswith("https://")
     bad = {**load_yaml("settings"), "vpn": {"enabled": "yes", "ip_check_url": "http://x"}}
     errs = " ".join(validate_settings(bad))

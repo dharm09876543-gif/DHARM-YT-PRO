@@ -33,7 +33,7 @@ vpn:
   # Phase 9 (optional): upload each channel through its own WireGuard tunnel.
   # Set a profile per channel: python main.py channels vpn --channel UC... --profile ch01
   # The config itself goes ONLY into the secret/env var WG_CONF_<PROFILE> (e.g. WG_CONF_CH01).
-  enabled: false
+  enabled: true                  # master switch; only channels with a vpn_profile use a tunnel
   provider: "Surfshark"
   protocol: "WireGuard"
   require_for_channels_with_profile: true   # tunnel fails or IP unchanged -> skip that channel's uploads (stay QUEUED) + alert

@@ -1,0 +1,52 @@
+name: Channel VPN
+# Attach (or remove) a WireGuard VPN profile to one channel, from the Actions screen.
+# The WireGuard config itself lives ONLY in the secret WG_CONF_<PROFILE> (e.g. WG_CONF_CH01).
+# This workflow only stores the profile NAME on the channel; it never prints the config.
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "YouTube channel ID (UC...)"
+        required: true
+      profile:
+        description: "VPN profile, e.g. ch01 (uses secret WG_CONF_CH01). Type off to remove the VPN"
+        required: true
+        default: "ch01"
+permissions:
+  contents: read
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+      APP_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Check the WireGuard secret exists (value is never shown)
+        if: inputs.profile != 'off'
+        env:
+          HAS_SECRET: ${{ secrets[format('WG_CONF_{0}', inputs.profile)] != '' }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          if [ "$HAS_SECRET" != "true" ]; then
+            echo "::error title=Secret missing::Add the secret WG_CONF_${PROFILE^^} first (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          echo "Secret WG_CONF_${PROFILE^^} found."
+      - name: Save on the channel
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          if [ "$PROFILE" = "off" ]; then
+            python main.py channels vpn --channel "$CHANNEL" --clear
+          else
+            python main.py channels vpn --channel "$CHANNEL" --profile "$PROFILE"
+          fi
