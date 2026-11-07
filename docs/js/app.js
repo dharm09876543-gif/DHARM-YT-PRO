@@ -82,7 +82,7 @@
     const view = DY.views[route];
     const label = (ROUTES.find((r) => r[0] === route) || [])[1] || 'Overview';
     $('page-title').textContent = view.title || label;
-    document.title = `${view.title || label} · DHARM YT PRO`;
+    document.title = `${view.title || label} · DHARM Upload Manager`;
     markNav(route);
     document.body.className = document.body.className.replace(/\broute-\S+/g, '').trim();
     document.body.classList.add(`route-${route}`);
