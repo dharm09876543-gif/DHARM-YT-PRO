@@ -1,6 +1,6 @@
 {
   "name": "DHARM Upload Manager · Command Center",
-  "short_name": "DHARM YT",
+  "short_name": "DHARM Upload",
   "description": "Multi-channel YouTube upload dashboard (Drive → YouTube).",
   "id": "./",
   "start_url": "./index.html",
