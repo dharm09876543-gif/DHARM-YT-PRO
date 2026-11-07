@@ -32,9 +32,11 @@ jobs:
     steps:
       - name: Secrets check
         run: |
+          bad=0
           for n in DATABASE_URL TOKEN_ENCRYPTION_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
-            if [ -z "${!n}" ]; then echo "::error title=$n missing::Add the $n secret under Settings > Secrets and variables > Actions."; exit 1; fi
+            if [ -z "${!n}" ]; then echo "::error title=$n missing::Add the $n secret under Settings > Secrets and variables > Actions."; bad=1; else echo "$n: set"; fi
           done
+          exit $bad
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
