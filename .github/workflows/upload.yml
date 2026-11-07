@@ -102,3 +102,37 @@ jobs:
         run: |
           for i in $(sudo wg show interfaces 2>/dev/null); do sudo ip link delete dev "$i" || true; done
           sudo rm -rf /tmp/dy-wg-* || true
+
+  status:
+    # Public dashboard snapshot (counts only). Force-pushed to the 'status' branch as one commit,
+    # so main stays clean and history never grows. Safe-checked before writing.
+    needs: [plan, upload]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: dashboard-status
+      cancel-in-progress: false
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Build snapshot
+        run: python main.py status-export --out "$RUNNER_TEMP/status.json" --run-status "${{ needs.upload.result == 'failure' && 'failed' || 'success' }}"
+      - name: Publish to status branch
+        run: |
+          mkdir "$RUNNER_TEMP/pub" && cd "$RUNNER_TEMP/pub"
+          git init -q -b status
+          cp "$RUNNER_TEMP/status.json" status.json
+          git add status.json
+          git -c user.name=dharm-yt-bot -c user.email=actions@users.noreply.github.com commit -qm "dashboard status snapshot"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" status

@@ -4,7 +4,7 @@
  */
 'use strict';
 
-const CACHE = 'dharm-yt-shell-v2';
+const CACHE = 'dharm-yt-shell-v3';
 const SHELL = [
   './',
   './index.html',

@@ -59,7 +59,19 @@
     $('demo-banner').hidden = !demo;
     document.body.classList.toggle('is-demo', demo);
     const pill = $('conn-pill');
-    if (demo) { pill.className = 'pill pill-gold'; pill.textContent = 'DEMO'; pill.title = 'Sample data — no backend set'; }
+    const snap = demo && DY.api.snapshot();
+    const banner = $('demo-banner');
+    banner.classList.toggle('is-snapshot', !!snap);
+    const bt = banner.querySelector('strong'), bs = banner.querySelector('span');
+    if (snap) {
+      bt.textContent = 'Live status (read-only).';
+      bs.textContent = `Real numbers from the last upload run, updated ${new Date(snap.generated_at).toLocaleString()}. Overview, Channels, Queue and Quota are real; other pages show sample data.`;
+    } else {
+      bt.textContent = 'Demo mode — sample data.';
+      bs.textContent = 'This is not real data. To see real data, add your backend URL in Settings and log in.';
+    }
+    if (snap) { pill.className = 'pill pill-green'; pill.textContent = 'LIVE'; pill.title = 'Read-only snapshot from the last workflow run'; }
+    else if (demo) { pill.className = 'pill pill-gold'; pill.textContent = 'DEMO'; pill.title = 'Sample data — no backend set'; }
     else if (DY.auth.isLoggedIn()) { pill.className = 'pill pill-green'; pill.textContent = 'LIVE'; pill.title = `Backend: ${DY.api.getBackend()}`; }
     else { pill.className = 'pill pill-red'; pill.textContent = 'LOGIN'; pill.title = 'Not logged in'; }
   }
@@ -89,6 +101,8 @@
 
   $('refresh-btn').addEventListener('click', render);
   window.addEventListener('hashchange', render);
+  document.addEventListener('dy:snapshot', refreshChrome);
+  if (DY.api.isDemo()) DY.api.loadSnapshot();
   DY.auth.onChange(refreshChrome);
   window.addEventListener('storage', (e) => { if (e.key === 'dy.backendUrl') render(); });
 

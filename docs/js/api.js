@@ -37,6 +37,27 @@
   }
   const isDemo = () => !getBackend();
 
+  // ---------------- LIVE SNAPSHOT (read-only) ----------------
+  // With no backend set, real numbers come from the public status.json that the Upload workflow
+  // publishes after every run (counts only, no secrets). Pages it does not cover stay on sample data.
+  const STATUS_URL = 'https://raw.githubusercontent.com/dharm09876543-gif/DHARM-YT-PRO/status/status.json';
+  const SNAP_ROUTES = { '/api/overview': 'overview', '/api/channels': 'channels', '/api/queue': 'queue',
+                        '/api/quota': 'quota', '/api/leaderboard': 'channels' };
+  let snapPromise = null;
+  let snapData = null;
+  function loadSnapshot(force) {
+    if (!snapPromise || force) {
+      snapPromise = fetch(`${STATUS_URL}?t=${Math.floor(Date.now() / 60000)}`,
+        { cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => (d && d.live_snapshot ? d : null))
+        .catch(() => null)
+        .then((d) => { snapData = d; document.dispatchEvent(new CustomEvent('dy:snapshot')); return d; });
+    }
+    return snapPromise;
+  }
+  const snapshot = () => snapData;
+
   async function request(path, { method = 'GET', body, auth = true, signal } = {}) {
     if (isDemo()) return demoRoute(method, path, body);
     const base = getBackend();
@@ -86,6 +107,17 @@
     const [p, qs] = path.split('?');
     const q = new URLSearchParams(qs || '');
     const m = (re) => p.match(re);
+    if (method === 'GET' && SNAP_ROUTES[p]) {
+      const snap = await loadSnapshot();
+      if (snap && snap[SNAP_ROUTES[p]]) {
+        const v = clone(snap[SNAP_ROUTES[p]]);
+        if (Array.isArray(v)) {
+          const s = (q.get('q') || '').toLowerCase();
+          return { snapshot: true, items: v.filter((c) => !s || String(c.name || '').toLowerCase().includes(s)) };
+        }
+        return v;
+      }
+    }
     if (method === 'GET') {
       if (p === '/api/overview') return clone(D.overview);
       if (p === '/api/channels') {
@@ -139,7 +171,7 @@
   }
 
   DY.api = {
-    ApiError, normalizeUrl, getBackend, setBackend, isDemo, request,
+    ApiError, normalizeUrl, getBackend, setBackend, isDemo, request, loadSnapshot, snapshot,
     get: (p, o) => request(p, { ...o, method: 'GET' }),
     post: (p, b, o) => request(p, { ...o, method: 'POST', body: b === undefined ? {} : b }),
     patch: (p, b, o) => request(p, { ...o, method: 'PATCH', body: b }),

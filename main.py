@@ -13,6 +13,7 @@
   python main.py audit       report of stuck/failed jobs (DB only)
   python main.py analytics   YouTube Analytics -> database
   python main.py health      DB + channels + jobs health check
+  python main.py status-export  public dashboard snapshot (counts only, no secrets)
 """
 import runpy
 import sys
@@ -22,7 +23,7 @@ CMDS = {"doctor": "doctor.py", "validate": "validate_config.py",
         "init-db": "initialize_db.py", "keygen": "generate_key.py",
         "channels": "channels.py", "ai": "ai_metadata.py",
         "connect": "connect_channel.py", "connect-url": "connect_from_url.py", "run": "run_uploads.py", "cleanup": "verify_drive_cleanup.py",
-        "audit": "audit_uploads.py", "analytics": "sync_analytics.py", "health": "health_check.py"}
+        "audit": "audit_uploads.py", "analytics": "sync_analytics.py", "health": "health_check.py", "status-export": "export_status.py"}
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
