@@ -323,3 +323,18 @@ def test_real_googleapiclient_session_gone_raises_session_lost(engine, cipher, c
     with pytest.raises(SessionLost):
         up.upload(vid, f, {"snippet": {"title": "t"}, "status": {}})
     assert seq.requests[0][0] == "PUT"
+
+
+def test_thumbnail_waits_until_processed(engine, ctx, channel):
+    ctx.yt.upload_status = "uploaded"
+    vid = _video(engine, channel["channel_id"], thumb="th1")
+    assert process_video(ctx, vid) == "VERIFYING"
+    assert "yt_vid_001" not in ctx.yt.thumbs and _v(engine, vid).thumbnail_status != "set"
+    ctx.yt.upload_status = "processed"
+    assert process_video(ctx, vid) == "COMPLETED"
+    assert "yt_vid_001" in ctx.yt.thumbs and _v(engine, vid).thumbnail_status == "set"
+
+
+def test_thumbnail_limit_is_50mb():
+    from src.upload.thumbnail import MAX_BYTES
+    assert MAX_BYTES == 50 * 1024 * 1024

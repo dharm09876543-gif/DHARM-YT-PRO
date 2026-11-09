@@ -155,12 +155,13 @@ def _finish_stage(ctx: UploadContext, v: dict) -> str:
     v = load_video(ctx.engine, v["id"])
     yt_id = v["youtube_video_id"]
     if v["upload_status"] in ("PROCESSING", "RETRY_WAIT"):
-        if v.get("thumbnail_drive_id") and v.get("thumbnail_status") != "set":
-            apply_thumbnail(ctx.engine, v["id"], yt_id, ctx.drive, ctx.yt, v["thumbnail_drive_id"],
-                            media_cls=ctx.thumb_media_cls)
         transition(ctx.engine, v["id"], "VERIFYING")
     r = verify_upload(ctx.yt, yt_id, v["channel_id"])
     if r.ok:
+        # Thumbnail only after processing is complete (required for Shorts since 2026-11-03).
+        if v.get("thumbnail_drive_id") and v.get("thumbnail_status") != "set":
+            apply_thumbnail(ctx.engine, v["id"], yt_id, ctx.drive, ctx.yt, v["thumbnail_drive_id"],
+                            media_cls=ctx.thumb_media_cls)
         transition(ctx.engine, v["id"], "COMPLETED", r.reason, event="verified", youtube_video_id=yt_id,
                    verified_channel_id=r.channel_id, processing_status=r.processing_status or r.upload_status,
                    last_error=None)

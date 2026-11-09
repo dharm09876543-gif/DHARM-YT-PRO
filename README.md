@@ -44,7 +44,7 @@ Step-by-step Google Cloud setup: **[SETUP.md](SETUP.md)**
 DRIVE_FOLDER_ID/
   video1.mp4               (or inside a videos/ subfolder)
   video1.json / video1.txt (optional: title, description, tags)
-  thumbnails/video1.jpg    (optional: same name, JPG/PNG, max 2MB)
+  thumbnails/video1.jpg    (optional: same name, JPG/PNG, max 50MB; Shorts 9:16 e.g. 1080x1920, set after processing)
 ```
 `.json`: `{"title": "...", "description": "...", "tags": ["a","b"], "category_id": "22"}` ·
 `.txt`: first line is the title, a `tags: a, b` line, the rest is the description. Without a sidecar, Gemini writes the metadata (if `GEMINI_API_KEY` is set) — in **English** by default, or Hindi/Hinglish via `defaults.language` in `config/channels.yaml`; otherwise the filename becomes the title.

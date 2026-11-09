@@ -57,7 +57,7 @@ IMPLEMENTED:
     src/utils/retry.py; 404/410 -> SessionLost), pipeline.py (download -> upload -> on SessionLost search
     channel uploads by title+time before any re-insert -> thumbnail -> verify -> COMPLETED; quotaExceeded
     -> pause, job back to QUEUED; uploadLimitExceeded -> that channel only), youtube_client.py,
-    verifier.py (channelId match + uploadStatus/processingStatus), thumbnail.py (JPG/PNG <= 2MB; failure
+    verifier.py (channelId match + uploadStatus/processingStatus), thumbnail.py (JPG/PNG <= 50MB, after processing; Shorts supported; failure
     does not fail the video).
   Cleanup: src/cleanup/drive_trash.py (trash only if COMPLETED + youtube id + verified channel +
     thumbnail set if any + Drive md5 unchanged; optional live re-verify; history; no files.delete anywhere).
