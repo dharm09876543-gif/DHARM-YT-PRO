@@ -1,0 +1,136 @@
+{
+ "generated_at": "2026-11-14T12:38:40.222804Z",
+ "live_snapshot": true,
+ "overview": {
+  "snapshot": true,
+  "channels": {
+   "total": 1,
+   "active": 0,
+   "disabled": 0
+  },
+  "uploaded_total": 5,
+  "queue": 0,
+  "processing": 0,
+  "failed": 0,
+  "scheduled": 0,
+  "views_28d": null,
+  "subscribers_total": null,
+  "quota": {
+   "used": 0,
+   "limit": 10000
+  },
+  "last_run": {
+   "at": "2026-11-14T12:38:39.628079Z",
+   "status": "success",
+   "workflow": "Upload videos"
+  },
+  "latest_errors": []
+ },
+ "channels": [
+  {
+   "id": "ch-1",
+   "youtube_channel_id": "UCOAw7PW_2pJf_J5D3GtyrZQ",
+   "name": "trends with shorts ",
+   "thumbnail_url": null,
+   "auth_status": "revoked",
+   "enabled": true,
+   "drive_folder_name": "Drive folder (hidden)",
+   "drive_folder_id": null,
+   "uploaded": 5,
+   "queued": 0,
+   "failed": 0,
+   "subscribers": null,
+   "views_28d": null,
+   "watch_hours_28d": null,
+   "ctr": null,
+   "last_upload_at": "2026-11-07T06:45:44Z",
+   "timezone": "Asia/Kolkata"
+  }
+ ],
+ "queue": [
+  {
+   "id": "job-5",
+   "file_name": "Video #5",
+   "channel_id": "ch-1",
+   "channel_name": "trends with shorts ",
+   "status": "COMPLETED",
+   "progress": 100,
+   "size_bytes": 54881762,
+   "attempts": 0,
+   "error": null,
+   "updated_at": "2026-11-07T06:45:44Z",
+   "youtube_video_id": null
+  },
+  {
+   "id": "job-4",
+   "file_name": "Video #4",
+   "channel_id": "ch-1",
+   "channel_name": "trends with shorts ",
+   "status": "COMPLETED",
+   "progress": 100,
+   "size_bytes": 97093739,
+   "attempts": 0,
+   "error": null,
+   "updated_at": "2026-11-07T06:18:46Z",
+   "youtube_video_id": null
+  },
+  {
+   "id": "job-3",
+   "file_name": "Video #3",
+   "channel_id": "ch-1",
+   "channel_name": "trends with shorts ",
+   "status": "COMPLETED",
+   "progress": 100,
+   "size_bytes": 25137514,
+   "attempts": 0,
+   "error": null,
+   "updated_at": "2026-11-07T06:18:44Z",
+   "youtube_video_id": null
+  },
+  {
+   "id": "job-1",
+   "file_name": "Video #1",
+   "channel_id": "ch-1",
+   "channel_name": "trends with shorts ",
+   "status": "COMPLETED",
+   "progress": 100,
+   "size_bytes": 44154518,
+   "attempts": 0,
+   "error": null,
+   "updated_at": "2026-11-07T06:03:26.061134Z",
+   "youtube_video_id": null
+  },
+  {
+   "id": "job-2",
+   "file_name": "Video #2",
+   "channel_id": "ch-1",
+   "channel_name": "trends with shorts ",
+   "status": "COMPLETED",
+   "progress": 100,
+   "size_bytes": 37844289,
+   "attempts": 0,
+   "error": null,
+   "updated_at": "2026-11-07T04:57:13Z",
+   "youtube_video_id": null
+  }
+ ],
+ "quota": {
+  "snapshot": true,
+  "projects": [
+   {
+    "name": "Google Cloud project",
+    "used": 0,
+    "limit": 10000,
+    "uploads_today": null
+   }
+  ],
+  "cost": {
+   "upload": 1600,
+   "thumbnail": 50,
+   "metadata_update": 50,
+   "list": 1
+  },
+  "resets_at": null,
+  "history": []
+ }
+}
